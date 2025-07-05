@@ -35,12 +35,22 @@ Add the API URL to your `.env` file:
 VITE_API_URL=http://localhost:3001
 ```
 
-### 4. Start the Frontend
+### 4. Start the Application
 
-In a separate terminal, start the frontend development server:
+The server now serves both the API and the production frontend. Simply start the server:
 
 ```bash
-npm run dev
+npm run server
+```
+
+Or use the automated startup script:
+
+```bash
+# On Windows:
+start-local.bat
+
+# On Mac/Linux:
+./start-local.sh
 ```
 
 ## How It Works
@@ -50,6 +60,12 @@ npm run dev
 - Files are renamed with timestamps to prevent conflicts
 - File metadata is stored in localStorage
 - The server serves files statically from the `/uploads` directory
+
+### Production Setup
+- Frontend is built for production and served by the Express server
+- Single server handles both API requests and static file serving
+- Optimized for performance with minified assets
+- SPA routing handled by the server
 
 ### API Endpoints
 - `POST /api/upload` - Upload files
@@ -63,13 +79,15 @@ npm run dev
 - **Metadata Management**: File metadata (name, location, date, tags) is stored in localStorage
 - **File Deletion**: Delete files from both server and local storage
 - **Fallback**: If server is unavailable, falls back to localStorage-only mode
+- **Production Ready**: Optimized build served by the same server
 
 ## File Structure
 
 ```
 project/
-├── server.js              # Backend server
+├── server.js              # Backend server + production frontend
 ├── uploads/               # Local file storage
+├── dist/                  # Production build (generated)
 ├── src/
 │   ├── utils/
 │   │   ├── api.ts         # API communication
@@ -100,6 +118,7 @@ project/
 - Make sure port 3001 is available
 - Check that all dependencies are installed
 - Verify the uploads directory can be created
+- Ensure the production build exists (run `npm run build` first)
 
 ### Uploads Fail
 - Check that the server is running

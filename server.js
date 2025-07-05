@@ -128,7 +128,16 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// Serve static files from the production build (after API routes)
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// Serve index.html for all routes (SPA routing)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Uploads directory: ${uploadsDir}`);
+  console.log(`Production build served from: ${path.join(__dirname, 'dist')}`);
 }); 
