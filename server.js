@@ -176,6 +176,10 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
   }
 });
 
+// Set higher body size limits for JSON and URL-encoded bodies (after upload route)
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
 // Get all uploaded files
 app.get('/api/files', (req, res) => {
   try {
