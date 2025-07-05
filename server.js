@@ -278,10 +278,14 @@ app.use((error, req, res, next) => {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'File too large. Maximum size is 50MB.' });
     }
+    // Other Multer errors
+    return res.status(400).json({ error: error.message });
   }
-  
-  console.error('Server error:', error);
-  res.status(500).json({ error: 'Internal server error' });
+  if (error) {
+    console.error('Server error:', error);
+    return res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+  next();
 });
 
 // Serve static files from the production build (after API routes)

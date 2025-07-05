@@ -137,7 +137,13 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
       toast.success(uploadResponse.message);
       handleClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to upload files");
+      let errorMsg = "Failed to upload files";
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      } else if (typeof error === 'object' && error !== null && 'error' in error) {
+        errorMsg = error.error;
+      }
+      toast.error(errorMsg);
       console.error("Upload error:", error);
     } finally {
       setIsUploading(false);
