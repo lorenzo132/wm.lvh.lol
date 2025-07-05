@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, MapPin, Calendar, X, Video } from "lucide-react";
+import { Download, MapPin, Calendar, X, Video, Share2 } from "lucide-react";
 import { MediaItem } from "@/types/media";
 
 interface MediaModalProps {
@@ -25,10 +25,32 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
     });
   };
 
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: media.name,
+          url: window.location.origin + media.url,
+        });
+      } catch (err) {
+        // User cancelled or error
+      }
+    } else if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(window.location.origin + media.url);
+        alert('Link copied to clipboard!');
+      } catch (err) {
+        alert('Failed to copy link.');
+      }
+    } else {
+      alert('Sharing not supported.');
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl w-full h-[90vh] p-0 bg-background border-border">
-        <div className="flex flex-col h-full">
+      <DialogContent className="max-w-7xl w-full h-[90vh] p-0 bg-background border-border flex overflow-hidden">
+        <div className="flex flex-col h-full w-full">
           {/* Header */}
           <DialogHeader className="p-6 pb-2 border-b border-border">
             <div className="flex items-center justify-between">
@@ -43,6 +65,13 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
               </div>
               <div className="flex items-center gap-2 mr-8">
                 <Button
+                  onClick={handleShare}
+                  className="bg-gradient-primary hover:opacity-90 transition-opacity"
+                >
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share
+                </Button>
+                <Button
                   onClick={() => onDownload(media)}
                   className="bg-gradient-primary hover:opacity-90 transition-opacity"
                 >
@@ -56,20 +85,20 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
           {/* Media Content */}
           <div className="flex-1 flex overflow-hidden">
             {/* Media Viewer */}
-            <div className="flex-1 flex items-center justify-center bg-black/20 p-4">
-              <div className="max-w-full max-h-full flex items-center justify-center">
+            <div className="flex-1 w-full h-full flex items-center justify-center bg-black/20 overflow-hidden">
+              <div className="w-full h-full flex items-center justify-center overflow-hidden">
                 {media.type === 'video' ? (
                   <video
                     src={media.url}
                     controls
-                    className="max-w-full max-h-[90vh] object-contain mx-auto rounded-lg shadow-2xl"
+                    className="block max-w-full max-h-[90vh] object-contain mx-auto rounded-lg shadow-2xl"
                     autoPlay={false}
                   />
                 ) : (
                   <img
                     src={media.url}
                     alt={media.name}
-                    className="max-w-full max-h-[90vh] object-contain mx-auto rounded-lg shadow-2xl"
+                    className="block max-w-full max-h-[90vh] object-contain mx-auto rounded-lg shadow-2xl"
                   />
                 )}
               </div>
