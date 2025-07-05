@@ -16,7 +16,7 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Enable CORS for frontend (production and local dev)
+// Enable CORS for frontend (production and local dev) - MUST be first middleware
 app.use(cors({
   origin: [
     'https://wmg.lvh.lol',
@@ -78,11 +78,11 @@ const upload = multer({
     if (allowedExtensions.includes(ext) && allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only png, jpg, jpeg, webp, gif, mp4 files are allowed'), false);
+      cb(new Error('Only png, jpg, jpeg, webp, gif, bmp, tif, tiff, svg, ico, avif, heic, heif, jfif, pjpeg, pjp, raw, arw, cr2, nrw, k25, dng, nef, orf, sr2, pef, raf, rw2, rwl, srw, bay, erf, mef, mos, mrw, srw, x3f, mp4, mov, avi, wmv, flv, webm, mkv, m4v, 3gp, ogg, ogv, mts, m2ts, ts, m2v, f4v, f4p, f4a, f4b, divx, asf, rm, rmvb, vob, dat, mpe, mpg, mpeg files are allowed'), false);
     }
   },
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
+    fileSize: 200 * 1024 * 1024 // 200MB limit
   }
 });
 
@@ -284,7 +284,7 @@ app.delete('/api/files/:filename', (req, res) => {
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File too large. Maximum size is 50MB.' });
+      return res.status(400).json({ error: 'File too large. Maximum size is 200MB.' });
     }
     // Other Multer errors
     return res.status(400).json({ error: error.message });
