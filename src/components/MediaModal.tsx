@@ -62,14 +62,14 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
                   <video
                     src={media.url}
                     controls
-                    className="max-w-full max-h-full rounded-lg shadow-2xl"
+                    className="max-w-full max-h-[90vh] object-contain mx-auto rounded-lg shadow-2xl"
                     autoPlay={false}
                   />
                 ) : (
                   <img
                     src={media.url}
                     alt={media.name}
-                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                    className="max-w-full max-h-[90vh] object-contain mx-auto rounded-lg shadow-2xl"
                   />
                 )}
               </div>
@@ -130,6 +130,17 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
                           {tag}
                         </Badge>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {media.photographer && (
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-3">Photographer</h3>
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="secondary" className="text-xs">
+                        {media.photographer}
+                      </Badge>
                     </div>
                   </div>
                 )}

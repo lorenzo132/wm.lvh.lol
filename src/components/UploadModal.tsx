@@ -25,6 +25,7 @@ interface FileWithMetadata {
   date: string;
   tags: string;
   customName: string;
+  photographer?: string;
 }
 
 const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
@@ -36,7 +37,8 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
   const [bulkMetadata, setBulkMetadata] = useState({
     location: "",
     date: new Date().toISOString().slice(0, 16),
-    tags: ""
+    tags: "",
+    photographer: ""
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,7 +61,8 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
             customName: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
             location: bulkMode ? bulkMetadata.location : "",
             date: bulkMode ? bulkMetadata.date : fileDate.toISOString().slice(0, 16), // Format for datetime-local input
-            tags: bulkMode ? bulkMetadata.tags : ""
+            tags: bulkMode ? bulkMetadata.tags : "",
+            photographer: bulkMode ? bulkMetadata.photographer : ""
           };
           
           setFiles(prev => [...prev, fileWithMetadata]);
@@ -126,7 +129,8 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
             location: fileData.location || undefined,
             size: uploadedFile.size,
             dimensions,
-            tags: tagsValue.split(',').map(tag => tag.trim()).filter(Boolean).length > 0 ? tagsValue.split(',').map(tag => tag.trim()).filter(Boolean) : undefined
+            tags: tagsValue.split(',').map(tag => tag.trim()).filter(Boolean).length > 0 ? tagsValue.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+            photographer: fileData.photographer || undefined
           };
 
           return mediaItem;
@@ -183,7 +187,8 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     setBulkMetadata({
       location: "",
       date: new Date().toISOString().slice(0, 16),
-      tags: ""
+      tags: "",
+      photographer: ""
     });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -281,6 +286,19 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                     value={bulkMetadata.tags}
                     onChange={(e) => setBulkMetadata(prev => ({ ...prev, tags: e.target.value }))}
                     placeholder="nature, sunset, mountains"
+                    className="bg-background/50"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bulk-photographer" className="text-sm font-medium flex items-center gap-1">
+                    <Image className="w-3 h-3" />
+                    Photographer
+                  </Label>
+                  <Input
+                    id="bulk-photographer"
+                    value={bulkMetadata.photographer}
+                    onChange={(e) => setBulkMetadata(prev => ({ ...prev, photographer: e.target.value }))}
+                    placeholder="e.g., Jane Doe"
                     className="bg-background/50"
                   />
                 </div>
@@ -411,6 +429,20 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                               <p className="text-xs text-muted-foreground mt-1">
                                 Separate tags with commas
                               </p>
+                            </div>
+
+                            <div>
+                              <Label htmlFor={`photographer-${index}`} className="text-sm font-medium flex items-center gap-1">
+                                <Image className="w-3 h-3" />
+                                Photographer
+                              </Label>
+                              <Input
+                                id={`photographer-${index}`}
+                                value={fileData.photographer || ''}
+                                onChange={(e) => updateFileMetadata(index, 'photographer', e.target.value)}
+                                placeholder="e.g., Jane Doe"
+                                className="bg-background/50"
+                              />
                             </div>
                           </>
                         )}

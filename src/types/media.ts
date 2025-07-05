@@ -12,6 +12,7 @@ export interface MediaItem {
     height: number;
   };
   tags?: string[];
+  photographer?: string;
 }
 
 export type SortBy = 'date' | 'location' | 'name';
