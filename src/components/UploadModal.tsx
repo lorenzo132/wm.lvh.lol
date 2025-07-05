@@ -112,6 +112,10 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
             dimensions = await getVideoDimensions(fileData.preview);
           }
 
+          const tagsValue = typeof fileData.tags === 'string' ? fileData.tags : '';
+          if (typeof fileData.tags !== 'string') {
+            console.warn('Unexpected tags value:', fileData.tags);
+          }
           const mediaItem: MediaItem = {
             id: `upload-${Date.now()}-${index}`,
             name: fileData.customName || fileData.name,
@@ -122,7 +126,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
             location: fileData.location || undefined,
             size: uploadedFile.size,
             dimensions,
-            tags: fileData.tags ? fileData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined
+            tags: tagsValue.split(',').map(tag => tag.trim()).filter(Boolean).length > 0 ? tagsValue.split(',').map(tag => tag.trim()).filter(Boolean) : undefined
           };
 
           return mediaItem;
