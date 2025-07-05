@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "server": "node server.js",
     "server:dev": "nodemon server.js",
-    "setup-server": "node setup-server.js"
+    "setup-server": "node setup-server.js",
+    "build-frontend": "./build-frontend.sh",
+    "start": "./start.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

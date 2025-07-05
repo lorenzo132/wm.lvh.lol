@@ -35,22 +35,28 @@ Add the API URL to your `.env` file:
 VITE_API_URL=http://localhost:3001
 ```
 
-### 4. Start the Application
+### 4. Build and Start the Application
 
-The server now serves both the API and the production frontend. Simply start the server:
-
-```bash
-npm run server
-```
-
-Or use the automated startup script:
-
+#### Option A: Build and Start Together (Recommended)
 ```bash
 # On Windows:
-start-local.bat
+start.bat
 
 # On Mac/Linux:
-./start-local.sh
+./start.sh
+```
+
+#### Option B: Build and Start Separately
+```bash
+# 1. Build the frontend
+# On Windows:
+build-frontend.bat
+
+# On Mac/Linux:
+./build-frontend.sh
+
+# 2. Start the server
+npm run server
 ```
 
 ## How It Works
@@ -91,13 +97,17 @@ project/
 ├── server.js              # Backend server + production frontend
 ├── uploads/               # Local file storage
 ├── dist/                  # Production build (generated)
+├── build-frontend.sh      # Frontend build script (Linux/Mac)
+├── build-frontend.bat     # Frontend build script (Windows)
+├── start.sh               # Start everything script (Linux/Mac)
+├── start.bat              # Start everything script (Windows)
 ├── src/
 │   ├── utils/
 │   │   ├── api.ts         # API communication
 │   │   └── storage.ts     # Storage utilities
 │   └── components/
 │       ├── UploadModal.tsx # File upload interface
-│       └── MediaCard.tsx   # Media display with delete
+│       └── MediaCard.tsx   # Media display
 └── package.json
 ```
 
