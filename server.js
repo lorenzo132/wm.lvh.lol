@@ -5,6 +5,10 @@ import fs from 'fs';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -80,7 +84,7 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
   try {
     // Check if password is provided
     const providedPassword = req.body.password;
-    const expectedPassword = process.env.VITE_UPLOAD_PASSWORD;
+    const expectedPassword = process.env.UPLOAD_PASSWORD;
     
     if (!providedPassword) {
       console.log('No password provided');

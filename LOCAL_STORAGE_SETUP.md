@@ -113,9 +113,23 @@ project/
 
 ## Environment Variables
 
+### Frontend Variables (VITE_ prefix)
 - `VITE_API_URL` - Backend server URL (default: http://localhost:3001)
-- `VITE_UPLOAD_PASSWORD` - Password for upload access
+- `VITE_UPLOAD_PASSWORD` - Password for upload access (frontend validation)
+
+### Backend Variables (no VITE_ prefix)
+- `UPLOAD_PASSWORD` - Password for upload access (server validation)
 - `PORT` - Backend server port (default: 3001)
+
+### Example .env file:
+```bash
+# Frontend
+VITE_API_URL=https://wm.lvh.lol
+VITE_UPLOAD_PASSWORD=your_secure_password_here
+
+# Backend
+UPLOAD_PASSWORD=your_secure_password_here
+```
 
 ## Security Notes
 
