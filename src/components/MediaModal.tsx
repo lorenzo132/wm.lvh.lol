@@ -30,14 +30,14 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
       try {
         await navigator.share({
           title: media.name,
-          url: window.location.origin + media.url,
+          url: media.url,
         });
       } catch (err) {
         // User cancelled or error
       }
     } else if (navigator.clipboard) {
       try {
-        await navigator.clipboard.writeText(window.location.origin + media.url);
+        await navigator.clipboard.writeText(media.url);
         alert('Link copied to clipboard!');
       } catch (err) {
         alert('Failed to copy link.');
