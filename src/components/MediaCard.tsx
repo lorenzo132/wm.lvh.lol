@@ -72,19 +72,19 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
     <Card className="group bg-gradient-card border-border hover:border-gallery-accent transition-all duration-300 animate-fade-in shadow-card-gallery hover:shadow-glow">
       <div className="relative aspect-square overflow-hidden">
         {/* Media Preview */}
-        <div className="relative w-full h-full bg-muted">
+        <div className="relative w-full h-full bg-muted rounded-inherit overflow-hidden">
           {!imageError ? (
             <img
               src={media.thumbnail || media.url}
               alt={media.name}
-              className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
+              className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 rounded-inherit ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="flex items-center justify-center w-full h-full bg-muted">
+            <div className="flex items-center justify-center w-full h-full bg-muted rounded-inherit">
               <div className="text-center">
                 <div className="w-12 h-12 mx-auto mb-2 bg-muted-foreground/20 rounded-lg flex items-center justify-center">
                   {media.type === 'video' ? (
