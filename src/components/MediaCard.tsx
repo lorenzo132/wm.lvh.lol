@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,42 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
   const [imageError, setImageError] = useState(false);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Generate video thumbnail
+  useEffect(() => {
+    if (media.type === 'video' && !media.thumbnail && !videoThumbnail) {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.playsInline = true;
+      
+      video.onloadeddata = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
+            setVideoThumbnail(thumbnailUrl);
+          }
+        } catch (error) {
+          console.error('Failed to generate video thumbnail:', error);
+        }
+      };
+      
+      video.onerror = () => {
+        console.error('Failed to load video for thumbnail generation');
+      };
+      
+      video.src = media.url;
+      video.load();
+    }
+  }, [media.type, media.thumbnail, media.url, videoThumbnail]);
 
   // Handle Ctrl+Shift key combination for showing delete button
   useEffect(() => {
@@ -68,6 +104,14 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
     });
   };
 
+  // Determine the image source for the preview
+  const getImageSource = () => {
+    if (media.type === 'video') {
+      return media.thumbnail || videoThumbnail || media.url;
+    }
+    return media.thumbnail || media.url;
+  };
+
   return (
     <Card className="group bg-gradient-card border-border hover:border-gallery-accent transition-all duration-300 animate-fade-in shadow-card-gallery hover:shadow-glow">
       <div className="relative aspect-square overflow-hidden">
@@ -75,7 +119,7 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
         <div className="relative w-full h-full bg-muted rounded-inherit overflow-hidden">
           {!imageError ? (
             <img
-              src={media.thumbnail || media.url}
+              src={getImageSource()}
               alt={media.name}
               className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 rounded-inherit ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
