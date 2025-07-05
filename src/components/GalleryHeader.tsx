@@ -9,6 +9,7 @@ interface GalleryHeaderProps {
   onSearchChange: (term: string) => void;
   dateFilter: string;
   onDateFilterChange: (date: string) => void;
+  onDateSearch: () => void;
   sortBy: 'date' | 'location' | 'name';
   sortOrder: 'asc' | 'desc';
   onSortChange: (sortBy: 'date' | 'location' | 'name', order: 'asc' | 'desc') => void;
@@ -21,6 +22,7 @@ const GalleryHeader = ({
   onSearchChange,
   dateFilter,
   onDateFilterChange,
+  onDateSearch,
   sortBy,
   sortOrder,
   onSortChange,
@@ -61,6 +63,16 @@ const GalleryHeader = ({
               className="w-40 bg-background/50 border-border focus:border-gallery-accent transition-colors"
               placeholder="Filter by date"
             />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDateSearch}
+              className="bg-background/50 hover:bg-gallery-hover"
+              disabled={!dateFilter}
+            >
+              <Search className="h-3 w-3 mr-1" />
+              Search
+            </Button>
             {dateFilter && (
               <Button
                 variant="ghost"

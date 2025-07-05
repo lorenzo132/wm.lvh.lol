@@ -49,14 +49,6 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
                   <Download className="w-4 h-4 mr-2" />
                   Download
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onClose}
-                  className="hover:bg-gallery-hover"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
               </div>
             </div>
           </DialogHeader>
