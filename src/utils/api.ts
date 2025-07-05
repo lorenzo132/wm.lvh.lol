@@ -70,9 +70,13 @@ export const getFiles = async (): Promise<FilesResponse> => {
   return response.json();
 };
 
-export const deleteFile = async (filename: string): Promise<{ success: boolean; message: string }> => {
+export const deleteFile = async (filename: string, password: string): Promise<{ success: boolean; message: string }> => {
   const response = await fetch(`${API_BASE_URL}/api/files/${encodeURIComponent(filename)}`, {
     method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ password }),
   });
 
   if (!response.ok) {

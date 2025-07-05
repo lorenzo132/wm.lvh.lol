@@ -80,7 +80,7 @@ export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
 };
 
 // Delete file from server and remove from local storage
-export const deleteMediaFromServer = async (media: MediaItem): Promise<boolean> => {
+export const deleteMediaFromServer = async (media: MediaItem, password: string): Promise<boolean> => {
   try {
     // Extract filename from URL
     const filename = media.url.split('/').pop();
@@ -88,7 +88,7 @@ export const deleteMediaFromServer = async (media: MediaItem): Promise<boolean> 
       throw new Error('Invalid file URL');
     }
 
-    await deleteFile(filename);
+    await deleteFile(filename, password);
     
     // Remove from local storage
     const localMedia = loadMediaFromStorage();

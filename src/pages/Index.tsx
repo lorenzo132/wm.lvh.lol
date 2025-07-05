@@ -163,6 +163,21 @@ const Index = () => {
     toast.success(`Added ${newMediaItems.length} new media item${newMediaItems.length !== 1 ? 's' : ''} to your gallery`);
   };
 
+  const handleDeleteMedia = async (media: MediaItem) => {
+    try {
+      const success = await deleteMediaFromServer(media, import.meta.env.VITE_UPLOAD_PASSWORD || '');
+      if (success) {
+        setMediaItems(prev => prev.filter(item => item.id !== media.id));
+        toast.success(`${media.name} deleted successfully`);
+      } else {
+        toast.error('Failed to delete media');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete media');
+    }
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedMedia(null);
@@ -214,7 +229,7 @@ const Index = () => {
                   media={media}
                   onView={handleViewMedia}
                   onDownload={handleDownloadMedia}
-
+                  onDelete={handleDeleteMedia}
                 />
               ))}
             </div>

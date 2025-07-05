@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,12 +9,56 @@ interface MediaCardProps {
   media: MediaItem;
   onView: (media: MediaItem) => void;
   onDownload: (media: MediaItem) => void;
-  onDelete?: (media: MediaItem) => void;
+  onDelete?: (media: MediaItem) => Promise<void>;
 }
 
 const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showDeleteButton, setShowDeleteButton] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Handle Ctrl+Shift key combination for showing delete button
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey) {
+        setShowDeleteButton(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || !e.shiftKey) {
+        setShowDeleteButton(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!onDelete) return;
+    
+    const password = prompt('Enter upload password to delete this file:');
+    if (!password) return;
+    
+    setIsDeleting(true);
+    try {
+      await onDelete(media);
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('Failed to delete file. Please check your password.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -89,6 +133,18 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
                 <Download className="w-4 h-4 mr-1" />
                 Download
               </Button>
+              {showDeleteButton && onDelete && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="bg-red-600/95 text-white hover:bg-red-700 transition-transform hover:scale-105 shadow-lg border border-red-500 min-w-fit"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              )}
             </div>
           </div>
         </div>

@@ -19,6 +19,9 @@ const PORT = process.env.PORT || 3001;
 // Enable CORS for frontend
 app.use(cors());
 
+// Parse JSON bodies
+app.use(express.json());
+
 // Add request logging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -149,14 +152,34 @@ app.get('/api/files', (req, res) => {
   }
 });
 
-// Delete file endpoint
+// Delete file endpoint with password validation
 app.delete('/api/files/:filename', (req, res) => {
   try {
+    // Check if password is provided
+    const providedPassword = req.body.password;
+    const expectedPassword = process.env.UPLOAD_PASSWORD;
+    
+    if (!providedPassword) {
+      console.log('No password provided for deletion');
+      return res.status(401).json({ error: 'Upload password is required for deletion' });
+    }
+    
+    if (!expectedPassword) {
+      console.log('No upload password configured on server');
+      return res.status(500).json({ error: 'Upload password not configured on server' });
+    }
+    
+    if (providedPassword !== expectedPassword) {
+      console.log('Invalid password provided for deletion');
+      return res.status(401).json({ error: 'Invalid upload password' });
+    }
+
     const filename = req.params.filename;
     const filePath = path.join(uploadsDir, filename);
     
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+      console.log(`File deleted: ${filename}`);
       res.json({ success: true, message: 'File deleted successfully' });
     } else {
       res.status(404).json({ error: 'File not found' });
