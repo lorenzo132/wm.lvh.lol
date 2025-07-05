@@ -6,6 +6,7 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 
 // Load environment variables
 dotenv.config();
@@ -143,8 +144,35 @@ app.get('/debug', (req, res) => {
 // Serve static files from uploads directory
 app.use('/uploads', express.static(uploadsDir));
 
+// MongoDB connection
+const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/wmgallery';
+mongoose.connect(mongoUri, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+const mediaSchema = new mongoose.Schema({
+  originalName: String,
+  filename: String,
+  url: String,
+  size: Number,
+  mimetype: String,
+  uploadedAt: Date,
+  name: String,
+  type: String,
+  date: String,
+  location: String,
+  tags: [String],
+  photographer: String,
+  dimensions: {
+    width: Number,
+    height: Number
+  }
+});
+const Media = mongoose.model('Media', mediaSchema);
+
 // Upload endpoint with password validation
-app.post('/api/upload', upload.array('files'), (req, res) => {
+app.post('/api/upload', upload.array('files'), async (req, res) => {
   console.log('Upload request received');
   console.log('Files:', req.files);
   console.log('Password provided:', !!req.body.password);
@@ -174,17 +202,43 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
       return res.status(400).json({ error: 'No files uploaded' });
     }
 
+    // Parse metadata from request body (if present)
+    let metadata = {};
+    try {
+      if (req.body.metadata) {
+        metadata = JSON.parse(req.body.metadata);
+      }
+    } catch (e) {
+      // ignore
+    }
+
     const uploadTime = new Date();
-    const uploadedFiles = req.files.map(file => ({
-      originalName: file.originalname,
-      filename: file.filename,
-      url: `/uploads/${file.filename}`,
-      size: file.size,
-      mimetype: file.mimetype,
-      uploadedAt: uploadTime.toISOString()
+    const uploadedFiles = await Promise.all(req.files.map(async (file, idx) => {
+      // Try to get per-file metadata if sent as array
+      let fileMeta = metadata[idx] || metadata || {};
+      // Fallback: use empty object
+      if (Array.isArray(metadata)) fileMeta = metadata[idx] || {};
+      
+      const mediaDoc = new Media({
+        originalName: file.originalname,
+        filename: file.filename,
+        url: `/uploads/${file.filename}`,
+        size: file.size,
+        mimetype: file.mimetype,
+        uploadedAt: uploadTime,
+        name: fileMeta.name || file.originalname.replace(/\.[^/.]+$/, ""),
+        type: file.mimetype.startsWith('video/') ? 'video' : 'image',
+        date: fileMeta.date || uploadTime.toISOString(),
+        location: fileMeta.location || '',
+        tags: fileMeta.tags || [],
+        photographer: fileMeta.photographer || '',
+        dimensions: fileMeta.dimensions || undefined
+      });
+      await mediaDoc.save();
+      return mediaDoc;
     }));
 
-    console.log('Files uploaded successfully:', uploadedFiles);
+    console.log('Files uploaded and saved to DB:', uploadedFiles);
 
     res.json({ 
       success: true, 
@@ -198,49 +252,21 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
 });
 
 // Get all uploaded files
-app.get('/api/files', (req, res) => {
+app.get('/api/files', async (req, res) => {
   try {
-    const files = fs.readdirSync(uploadsDir);
-    const fileList = files.map(filename => {
-      const filePath = path.join(uploadsDir, filename);
-      const stats = fs.statSync(filePath);
-      
-      // Extract timestamp from filename (format: name-timestamp.ext)
-      let uploadedAt = stats.mtime; // fallback to file modification time
-      const timestampMatch = filename.match(/-(\d+)\./);
-      if (timestampMatch) {
-        const timestamp = parseInt(timestampMatch[1]);
-        if (!isNaN(timestamp)) {
-          uploadedAt = new Date(timestamp);
-        }
-      }
-      
-      return {
-        filename,
-        url: `/uploads/${filename}`,
-        size: stats.size,
-        uploadedAt: uploadedAt
-      };
-    });
-    
-    // Sort by upload date (newest first)
-    fileList.sort((a, b) => {
-      return new Date(b.uploadedAt) - new Date(a.uploadedAt);
-    });
-    
-    res.json({ files: fileList });
+    const files = await Media.find().sort({ uploadedAt: -1 });
+    res.json({ files });
   } catch (error) {
-    console.error('Error reading files:', error);
+    console.error('Error reading files from DB:', error);
     res.status(500).json({ error: 'Failed to read files' });
   }
 });
 
 // Delete file endpoint with password validation
-app.delete('/api/files/:filename', (req, res) => {
+app.delete('/api/files/:filename', async (req, res) => {
   try {
     console.log('Delete request received for:', req.params.filename);
     console.log('Request body:', req.body);
-    
     // Check if password is provided
     const providedPassword = req.body.password;
     const expectedPassword = process.env.UPLOAD_PASSWORD;
@@ -266,7 +292,10 @@ app.delete('/api/files/:filename', (req, res) => {
 
     const filename = req.params.filename;
     const filePath = path.join(uploadsDir, filename);
-    
+
+    // Remove from DB
+    await Media.deleteOne({ filename });
+    // Remove from disk
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       console.log(`File deleted: ${filename}`);
