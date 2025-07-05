@@ -27,21 +27,10 @@ const Index = () => {
     const loadMedia = async () => {
       try {
         const serverMedia = await loadMediaFromServer();
-        if (serverMedia.length > 0) {
-          setMediaItems(serverMedia);
-        } else {
-          // Only show sample media if no stored media exists
-          setMediaItems(sampleMedia);
-        }
+        setMediaItems(serverMedia);
       } catch (error) {
         console.error("Failed to load media from server:", error);
-        // Fallback to local storage
-        const storedMedia = loadMediaFromStorage();
-        if (storedMedia.length > 0) {
-          setMediaItems(storedMedia);
-        } else {
-          setMediaItems(sampleMedia);
-        }
+        setMediaItems([]);
       }
     };
 
