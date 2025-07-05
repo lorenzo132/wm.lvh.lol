@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Use the current origin for API calls in production, fallback to localhost for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001');
 
 export interface UploadedFile {
   originalName: string;
@@ -32,17 +33,27 @@ export const uploadFiles = async (files: File[]): Promise<UploadResponse> => {
     formData.append('files', file);
   });
 
-  const response = await fetch(`${API_BASE_URL}/api/upload`, {
-    method: 'POST',
-    body: formData,
-  });
+  const uploadUrl = `${API_BASE_URL}/api/upload`;
+  console.log('Uploading to:', uploadUrl);
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Upload failed: ${response.status}`);
+  try {
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+    });
+
+    console.log('Upload response status:', response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Upload failed: ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Upload error details:', error);
+    throw error;
   }
-
-  return response.json();
 };
 
 export const getFiles = async (): Promise<FilesResponse> => {

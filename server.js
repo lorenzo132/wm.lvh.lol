@@ -15,6 +15,12 @@ const PORT = process.env.PORT || 3001;
 // Enable CORS for frontend
 app.use(cors());
 
+// Add request logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -52,13 +58,27 @@ const upload = multer({
   }
 });
 
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Server is running!', timestamp: new Date().toISOString() });
+});
+
+// Debug page
+app.get('/debug', (req, res) => {
+  res.sendFile(path.join(__dirname, 'debug.html'));
+});
+
 // Serve static files from uploads directory
 app.use('/uploads', express.static(uploadsDir));
 
 // Upload endpoint
 app.post('/api/upload', upload.array('files'), (req, res) => {
+  console.log('Upload request received');
+  console.log('Files:', req.files);
+  
   try {
     if (!req.files || req.files.length === 0) {
+      console.log('No files in request');
       return res.status(400).json({ error: 'No files uploaded' });
     }
 
@@ -69,6 +89,8 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
       size: file.size,
       mimetype: file.mimetype
     }));
+
+    console.log('Files uploaded successfully:', uploadedFiles);
 
     res.json({ 
       success: true, 
@@ -141,8 +163,9 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Server accessible at: http://localhost:${PORT}`);
   console.log(`Uploads directory: ${uploadsDir}`);
   console.log(`Production build served from: ${path.join(__dirname, 'dist')}`);
 }); 
