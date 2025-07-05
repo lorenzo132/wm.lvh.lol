@@ -11,7 +11,7 @@ export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
       name: fileInfo.name || fileInfo.filename.replace(/\.[^/.]+$/, ""),
       url: getFileUrl(fileInfo.filename),
       thumbnail: fileInfo.thumbnail,
-      type: fileInfo.type || (fileInfo.filename.toLowerCase().match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/) ? 'video' : 'image'),
+      type: fileInfo.type === 'video' ? 'video' : 'image',
       date: fileInfo.date || new Date(fileInfo.uploadedAt).toISOString(),
       location: fileInfo.location,
       size: fileInfo.size,
@@ -38,10 +38,10 @@ export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
 // Delete file from server
 export const deleteMediaFromServer = async (media: MediaItem, password: string): Promise<boolean> => {
   try {
-    // Extract filename from URL
-    const filename = media.url.split('/').pop();
+    // Use the filename property from the backend
+    const filename = media.filename;
     if (!filename) {
-      throw new Error('Invalid file URL');
+      throw new Error('Invalid file: missing filename property');
     }
     const result = await deleteFile(filename, password);
     return result.success;

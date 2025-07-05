@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 
 // Load environment variables
 dotenv.config();
@@ -49,12 +50,10 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    // Generate unique filename with timestamp
-    const timestamp = Date.now();
-    const originalName = file.originalname;
-    const extension = path.extname(originalName);
-    const nameWithoutExt = path.basename(originalName, extension);
-    const filename = `${nameWithoutExt}-${timestamp}${extension}`;
+    // Generate a UUID for the filename
+    const extension = path.extname(file.originalname);
+    const uuid = crypto.randomUUID();
+    const filename = `${uuid}${extension}`;
     cb(null, filename);
   }
 });

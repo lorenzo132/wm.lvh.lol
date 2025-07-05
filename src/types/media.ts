@@ -13,6 +13,8 @@ export interface MediaItem {
   };
   tags?: string[];
   photographer?: string;
+  filename: string;
+  mimetype?: string;
 }
 
 export type SortBy = 'date' | 'location' | 'name';
