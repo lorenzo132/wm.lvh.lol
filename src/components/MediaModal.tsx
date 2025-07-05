@@ -41,7 +41,7 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mr-8">
                 <Button
                   onClick={() => onDownload(media)}
                   className="bg-gradient-primary hover:opacity-90 transition-opacity"
