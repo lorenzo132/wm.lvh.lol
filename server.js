@@ -211,6 +211,7 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
     } catch (e) {
       // ignore
     }
+    console.log('Parsed metadata:', metadata);
 
     const uploadTime = new Date();
     const uploadedFiles = await Promise.all(req.files.map(async (file, idx) => {
@@ -218,7 +219,7 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
       let fileMeta = metadata[idx] || metadata || {};
       // Fallback: use empty object
       if (Array.isArray(metadata)) fileMeta = metadata[idx] || {};
-      
+      console.log(`Saving file ${file.filename} with metadata:`, fileMeta);
       const mediaDoc = new Media({
         originalName: file.originalname,
         filename: file.filename,
@@ -255,7 +256,23 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
 app.get('/api/files', async (req, res) => {
   try {
     const files = await Media.find().sort({ uploadedAt: -1 });
-    res.json({ files });
+    const mapped = files.map(doc => ({
+      id: doc._id.toString(),
+      name: doc.name,
+      url: doc.url,
+      thumbnail: doc.thumbnail, // if you ever add this
+      type: doc.type,
+      date: doc.date,
+      location: doc.location,
+      size: doc.size,
+      dimensions: doc.dimensions,
+      tags: doc.tags || [],
+      photographer: doc.photographer || '',
+      mimetype: doc.mimetype,
+      uploadedAt: doc.uploadedAt,
+      filename: doc.filename,
+    }));
+    res.json({ files: mapped });
   } catch (error) {
     console.error('Error reading files from DB:', error);
     res.status(500).json({ error: 'Failed to read files' });
