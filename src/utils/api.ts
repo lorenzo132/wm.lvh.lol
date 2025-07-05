@@ -27,32 +27,31 @@ export interface FilesResponse {
   files: FileInfo[];
 }
 
-export const uploadFiles = async (files: File[], password: string): Promise<UploadResponse> => {
+export const uploadFiles = async (
+  files: File[],
+  password: string,
+  metadata?: any[]
+): Promise<UploadResponse> => {
   const formData = new FormData();
-  
   files.forEach(file => {
     formData.append('files', file);
   });
-  
-  // Add password to form data
   formData.append('password', password);
-
+  if (metadata) {
+    formData.append('metadata', JSON.stringify(metadata));
+  }
   const uploadUrl = `${API_BASE_URL}/api/upload`;
   console.log('Uploading to:', uploadUrl);
-
   try {
     const response = await fetch(uploadUrl, {
       method: 'POST',
       body: formData,
     });
-
     console.log('Upload response status:', response.status);
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `Upload failed: ${response.status}`);
     }
-
     return response.json();
   } catch (error) {
     console.error('Upload error details:', error);

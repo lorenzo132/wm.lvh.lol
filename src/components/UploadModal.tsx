@@ -100,7 +100,19 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     try {
       // Upload files to server
       const fileList = files.map(fileData => fileData.file);
-      const uploadResponse = await uploadFiles(fileList, password);
+      // Prepare metadata array for all files
+      const metadataArray = files.map(fileData => {
+        const tagsValue = typeof fileData.tags === 'string' ? fileData.tags : '';
+        return {
+          name: fileData.customName || fileData.name,
+          date: fileData.date,
+          location: fileData.location,
+          tags: tagsValue.split(',').map(tag => tag.trim()).filter(Boolean),
+          photographer: fileData.photographer || '',
+          // dimensions will be set after upload if needed
+        };
+      });
+      const uploadResponse = await uploadFiles(fileList, password, metadataArray);
 
       // Create media items with server URLs
       const mediaItems: MediaItem[] = await Promise.all(
