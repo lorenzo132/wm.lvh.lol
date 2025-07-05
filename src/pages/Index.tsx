@@ -8,7 +8,7 @@ import PasswordPromptModal from "@/components/PasswordPromptModal";
 import { Button } from "@/components/ui/button";
 import { sampleMedia } from "@/data/sampleMedia";
 import { MediaItem, SortBy, SortOrder } from "@/types/media";
-import { saveMediaToStorage, loadMediaFromStorage } from "@/utils/storage";
+import { saveMediaToStorage, loadMediaFromStorage, loadMediaFromServer, deleteMediaFromServer } from "@/utils/storage";
 import { 
   hasUploadPassword, 
   isUploadSessionValid, 
@@ -25,20 +25,35 @@ const Index = () => {
   const [isPasswordPromptOpen, setIsPasswordPromptOpen] = useState(false);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
 
-  // Load media from localStorage on component mount
+  // Load media from server and localStorage on component mount
   useEffect(() => {
-    const storedMedia = loadMediaFromStorage();
-    if (storedMedia.length > 0) {
-      setMediaItems(storedMedia);
-    } else {
-      // Only show sample media if no stored media exists
-      setMediaItems(sampleMedia);
-    }
+    const loadMedia = async () => {
+      try {
+        const serverMedia = await loadMediaFromServer();
+        if (serverMedia.length > 0) {
+          setMediaItems(serverMedia);
+        } else {
+          // Only show sample media if no stored media exists
+          setMediaItems(sampleMedia);
+        }
+      } catch (error) {
+        console.error("Failed to load media from server:", error);
+        // Fallback to local storage
+        const storedMedia = loadMediaFromStorage();
+        if (storedMedia.length > 0) {
+          setMediaItems(storedMedia);
+        } else {
+          setMediaItems(sampleMedia);
+        }
+      }
+    };
 
-      // Check if password is configured
-  if (!hasUploadPassword()) {
-    console.warn("VITE_UPLOAD_PASSWORD environment variable is not set. Upload functionality will be disabled.");
-  }
+    loadMedia();
+
+    // Check if password is configured
+    if (!hasUploadPassword()) {
+      console.warn("VITE_UPLOAD_PASSWORD environment variable is not set. Upload functionality will be disabled.");
+    }
   }, []);
 
   // Save media to localStorage whenever mediaItems changes
@@ -119,6 +134,21 @@ const Index = () => {
     document.body.removeChild(link);
   };
 
+  const handleDeleteMedia = async (media: MediaItem) => {
+    try {
+      const success = await deleteMediaFromServer(media);
+      if (success) {
+        setMediaItems(prev => prev.filter(item => item.id !== media.id));
+        toast.success(`Deleted ${media.name}`);
+      } else {
+        toast.error(`Failed to delete ${media.name}`);
+      }
+    } catch (error) {
+      toast.error(`Failed to delete ${media.name}`);
+      console.error("Delete error:", error);
+    }
+  };
+
   const handleUpload = () => {
     // Check if password is configured
     if (!hasUploadPassword()) {
@@ -194,6 +224,7 @@ const Index = () => {
                   media={media}
                   onView={handleViewMedia}
                   onDownload={handleDownloadMedia}
+                  onDelete={handleDeleteMedia}
                 />
               ))}
             </div>

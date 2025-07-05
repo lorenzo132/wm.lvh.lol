@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Upload, X, Calendar, MapPin, Tag, Image, Video } from "lucide-react";
 import { MediaItem } from "@/types/media";
+import { uploadFiles } from "@/utils/api";
 import { toast } from "sonner";
 
 interface UploadModalProps {
@@ -81,28 +82,32 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     setIsUploading(true);
 
     try {
+      // Upload files to server
+      const fileList = files.map(fileData => fileData.file);
+      const uploadResponse = await uploadFiles(fileList);
+
+      // Create media items with server URLs
       const mediaItems: MediaItem[] = await Promise.all(
         files.map(async (fileData, index) => {
-          // Create object URL for the file
-          const url = URL.createObjectURL(fileData.file);
+          const uploadedFile = uploadResponse.files[index];
           
           // Get image/video dimensions
           let dimensions;
           if (fileData.file.type.startsWith('image/')) {
             dimensions = await getImageDimensions(fileData.preview);
           } else if (fileData.file.type.startsWith('video/')) {
-            dimensions = await getVideoDimensions(url);
+            dimensions = await getVideoDimensions(fileData.preview);
           }
 
           const mediaItem: MediaItem = {
             id: `upload-${Date.now()}-${index}`,
             name: fileData.customName || fileData.name,
-            url,
+            url: uploadedFile.url,
             thumbnail: fileData.preview,
             type: fileData.file.type.startsWith('video/') ? 'video' : 'image',
             date: new Date(fileData.date).toISOString(),
             location: fileData.location || undefined,
-            size: fileData.file.size,
+            size: uploadedFile.size,
             dimensions,
             tags: fileData.tags ? fileData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined
           };
@@ -112,10 +117,10 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
       );
 
       onUpload(mediaItems);
-      toast.success(`Successfully uploaded ${mediaItems.length} file(s)`);
+      toast.success(uploadResponse.message);
       handleClose();
     } catch (error) {
-      toast.error("Failed to upload files");
+      toast.error(error instanceof Error ? error.message : "Failed to upload files");
       console.error("Upload error:", error);
     } finally {
       setIsUploading(false);

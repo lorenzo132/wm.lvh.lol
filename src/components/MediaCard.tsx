@@ -2,16 +2,17 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, MapPin, Calendar, Video, Eye } from "lucide-react";
+import { Download, MapPin, Calendar, Video, Eye, Trash2 } from "lucide-react";
 import { MediaItem } from "@/types/media";
 
 interface MediaCardProps {
   media: MediaItem;
   onView: (media: MediaItem) => void;
   onDownload: (media: MediaItem) => void;
+  onDelete?: (media: MediaItem) => void;
 }
 
-const MediaCard = ({ media, onView, onDownload }: MediaCardProps) => {
+const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -88,6 +89,20 @@ const MediaCard = ({ media, onView, onDownload }: MediaCardProps) => {
                 <Download className="w-4 h-4 mr-1" />
                 Download
               </Button>
+              {onDelete && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(media);
+                  }}
+                  className="bg-red-500/90 text-white hover:bg-red-600 transition-transform hover:scale-105"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </Button>
+              )}
             </div>
           </div>
         </div>
