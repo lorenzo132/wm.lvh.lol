@@ -59,6 +59,9 @@ const upload = multer({
     } else {
       cb(new Error('Only image and video files are allowed'), false);
     }
+  },
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB limit
   }
 });
 
@@ -172,10 +175,6 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
     res.status(500).json({ error: 'Upload failed' });
   }
 });
-
-// Set higher body size limits for JSON and URL-encoded bodies (after upload route)
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // Get all uploaded files
 app.get('/api/files', (req, res) => {
