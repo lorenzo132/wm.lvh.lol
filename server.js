@@ -155,9 +155,15 @@ app.get('/api/files', (req, res) => {
 // Delete file endpoint with password validation
 app.delete('/api/files/:filename', (req, res) => {
   try {
+    console.log('Delete request received for:', req.params.filename);
+    console.log('Request body:', req.body);
+    
     // Check if password is provided
     const providedPassword = req.body.password;
     const expectedPassword = process.env.UPLOAD_PASSWORD;
+    
+    console.log('Provided password:', providedPassword ? '***' : 'none');
+    console.log('Expected password:', expectedPassword ? '***' : 'none');
     
     if (!providedPassword) {
       console.log('No password provided for deletion');
@@ -171,6 +177,7 @@ app.delete('/api/files/:filename', (req, res) => {
     
     if (providedPassword !== expectedPassword) {
       console.log('Invalid password provided for deletion');
+      console.log('Password comparison failed');
       return res.status(401).json({ error: 'Invalid upload password' });
     }
 

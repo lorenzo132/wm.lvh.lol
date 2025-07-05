@@ -9,7 +9,7 @@ interface MediaCardProps {
   media: MediaItem;
   onView: (media: MediaItem) => void;
   onDownload: (media: MediaItem) => void;
-  onDelete?: (media: MediaItem) => Promise<void>;
+  onDelete?: (media: MediaItem, password: string) => Promise<void>;
 }
 
 const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
@@ -51,7 +51,7 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
     
     setIsDeleting(true);
     try {
-      await onDelete(media);
+      await onDelete(media, password);
     } catch (error) {
       console.error('Delete failed:', error);
       alert('Failed to delete file. Please check your password.');

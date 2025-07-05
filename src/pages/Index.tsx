@@ -163,9 +163,9 @@ const Index = () => {
     toast.success(`Added ${newMediaItems.length} new media item${newMediaItems.length !== 1 ? 's' : ''} to your gallery`);
   };
 
-  const handleDeleteMedia = async (media: MediaItem) => {
+  const handleDeleteMedia = async (media: MediaItem, password: string) => {
     try {
-      const success = await deleteMediaFromServer(media, import.meta.env.VITE_UPLOAD_PASSWORD || '');
+      const success = await deleteMediaFromServer(media, password);
       if (success) {
         setMediaItems(prev => prev.filter(item => item.id !== media.id));
         toast.success(`${media.name} deleted successfully`);

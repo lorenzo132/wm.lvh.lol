@@ -71,6 +71,9 @@ export const getFiles = async (): Promise<FilesResponse> => {
 };
 
 export const deleteFile = async (filename: string, password: string): Promise<{ success: boolean; message: string }> => {
+  console.log('Deleting file:', filename);
+  console.log('Password provided:', password ? '***' : 'none');
+  
   const response = await fetch(`${API_BASE_URL}/api/files/${encodeURIComponent(filename)}`, {
     method: 'DELETE',
     headers: {
@@ -79,8 +82,11 @@ export const deleteFile = async (filename: string, password: string): Promise<{ 
     body: JSON.stringify({ password }),
   });
 
+  console.log('Delete response status:', response.status);
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    console.log('Delete error response:', errorData);
     throw new Error(errorData.error || `Failed to delete file: ${response.status}`);
   }
 
