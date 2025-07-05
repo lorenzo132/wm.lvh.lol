@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, SortAsc, SortDesc, Upload, Filter } from "lucide-react";
+import { Search, SortAsc, SortDesc, Upload, Filter, Calendar, X } from "lucide-react";
 
 interface GalleryHeaderProps {
   searchTerm: string;
   onSearchChange: (term: string) => void;
+  dateFilter: string;
+  onDateFilterChange: (date: string) => void;
   sortBy: 'date' | 'location' | 'name';
   sortOrder: 'asc' | 'desc';
   onSortChange: (sortBy: 'date' | 'location' | 'name', order: 'asc' | 'desc') => void;
@@ -17,6 +19,8 @@ interface GalleryHeaderProps {
 const GalleryHeader = ({
   searchTerm,
   onSearchChange,
+  dateFilter,
+  onDateFilterChange,
   sortBy,
   sortOrder,
   onSortChange,
@@ -45,6 +49,28 @@ const GalleryHeader = ({
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-10 bg-background/50 border-border focus:border-gallery-accent transition-colors"
             />
+          </div>
+
+          {/* Date Filter */}
+          <div className="relative flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => onDateFilterChange(e.target.value)}
+              className="w-40 bg-background/50 border-border focus:border-gallery-accent transition-colors"
+              placeholder="Filter by date"
+            />
+            {dateFilter && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDateFilterChange("")}
+                className="h-8 w-8 hover:bg-gallery-hover"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
           </div>
 
           {/* Sort Controls */}

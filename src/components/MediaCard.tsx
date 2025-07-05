@@ -25,7 +25,7 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
   };
 
   return (
-    <Card className="group overflow-hidden bg-gradient-card border-border hover:border-gallery-accent transition-all duration-300 animate-fade-in shadow-card-gallery hover:shadow-glow">
+    <Card className="group bg-gradient-card border-border hover:border-gallery-accent transition-all duration-300 animate-fade-in shadow-card-gallery hover:shadow-glow">
       <div className="relative aspect-square overflow-hidden">
         {/* Media Preview */}
         <div className="relative w-full h-full bg-muted">
@@ -63,8 +63,8 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
           )}
 
           {/* Overlay with Controls */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-            <div className="flex gap-2">
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100 p-4 z-10">
+            <div className="flex gap-2 flex-wrap justify-center max-w-full">
               <Button
                 size="sm"
                 variant="secondary"
@@ -72,7 +72,7 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
                   e.stopPropagation();
                   onView(media);
                 }}
-                className="bg-white/90 text-black hover:bg-white transition-transform hover:scale-105"
+                className="bg-white/95 text-black hover:bg-white transition-transform hover:scale-105 shadow-lg border border-gray-200 min-w-fit"
               >
                 <Eye className="w-4 h-4 mr-1" />
                 View
@@ -84,12 +84,11 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
                   e.stopPropagation();
                   onDownload(media);
                 }}
-                className="bg-white/90 text-black hover:bg-white transition-transform hover:scale-105"
+                className="bg-white/95 text-black hover:bg-white transition-transform hover:scale-105 shadow-lg border border-gray-200 min-w-fit"
               >
                 <Download className="w-4 h-4 mr-1" />
                 Download
               </Button>
-
             </div>
           </div>
         </div>

@@ -13,6 +13,7 @@ import { hasUploadPassword } from "@/utils/passwordManager";
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
@@ -62,12 +63,23 @@ const Index = () => {
   // Filter and sort media items
   const filteredAndSortedMedia = useMemo(() => {
     let filtered = mediaItems.filter((media) => {
+      // Search filter
       const searchLower = searchTerm.toLowerCase();
-      return (
+      const matchesSearch = (
         media.name.toLowerCase().includes(searchLower) ||
         media.location?.toLowerCase().includes(searchLower) ||
         media.tags?.some(tag => tag.toLowerCase().includes(searchLower))
       );
+
+      // Date filter
+      let matchesDate = true;
+      if (dateFilter && media.date) {
+        const mediaDate = new Date(media.date);
+        const filterDate = new Date(dateFilter);
+        matchesDate = mediaDate.toDateString() === filterDate.toDateString();
+      }
+
+      return matchesSearch && matchesDate;
     });
 
     // Sort the filtered items
@@ -165,6 +177,8 @@ const Index = () => {
             <GalleryHeader
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
+              dateFilter={dateFilter}
+              onDateFilterChange={setDateFilter}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortChange={handleSortChange}
