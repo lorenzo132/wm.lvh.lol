@@ -4,16 +4,12 @@ import GalleryHeader from "@/components/GalleryHeader";
 import MediaCard from "@/components/MediaCard";
 import MediaModal from "@/components/MediaModal";
 import UploadModal from "@/components/UploadModal";
-import PasswordPromptModal from "@/components/PasswordPromptModal";
+
 import { Button } from "@/components/ui/button";
 import { sampleMedia } from "@/data/sampleMedia";
 import { MediaItem, SortBy, SortOrder } from "@/types/media";
 import { saveMediaToStorage, loadMediaFromStorage, loadMediaFromServer, deleteMediaFromServer } from "@/utils/storage";
-import { 
-  hasUploadPassword, 
-  isUploadSessionValid, 
-  setUploadSession
-} from "@/utils/passwordManager";
+import { hasUploadPassword } from "@/utils/passwordManager";
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -22,7 +18,7 @@ const Index = () => {
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isPasswordPromptOpen, setIsPasswordPromptOpen] = useState(false);
+
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
 
   // Load media from server and localStorage on component mount
@@ -134,20 +130,7 @@ const Index = () => {
     document.body.removeChild(link);
   };
 
-  const handleDeleteMedia = async (media: MediaItem) => {
-    try {
-      const success = await deleteMediaFromServer(media);
-      if (success) {
-        setMediaItems(prev => prev.filter(item => item.id !== media.id));
-        toast.success(`Deleted ${media.name}`);
-      } else {
-        toast.error(`Failed to delete ${media.name}`);
-      }
-    } catch (error) {
-      toast.error(`Failed to delete ${media.name}`);
-      console.error("Delete error:", error);
-    }
-  };
+
 
   const handleUpload = () => {
     // Check if password is configured
@@ -156,22 +139,11 @@ const Index = () => {
       return;
     }
 
-    // Check if user has valid session
-    if (isUploadSessionValid()) {
-      setIsUploadModalOpen(true);
-    } else {
-      setIsPasswordPromptOpen(true);
-    }
-  };
-
-  const handlePasswordSuccess = () => {
-    setIsPasswordPromptOpen(false);
+    // Always open upload modal directly - password will be entered there
     setIsUploadModalOpen(true);
   };
 
-  const handlePasswordCorrect = (password: string) => {
-    setUploadSession();
-  };
+
 
   const handleUploadComplete = (newMediaItems: MediaItem[]) => {
     setMediaItems(prev => [...newMediaItems, ...prev]);
@@ -224,7 +196,7 @@ const Index = () => {
                   media={media}
                   onView={handleViewMedia}
                   onDownload={handleDownloadMedia}
-                  onDelete={handleDeleteMedia}
+
                 />
               ))}
             </div>
@@ -246,13 +218,7 @@ const Index = () => {
           onUpload={handleUploadComplete}
         />
 
-        {/* Password Prompt Modal */}
-        <PasswordPromptModal
-          isOpen={isPasswordPromptOpen}
-          onClose={() => setIsPasswordPromptOpen(false)}
-          onSuccess={handlePasswordSuccess}
-          onPasswordCorrect={handlePasswordCorrect}
-        />
+
       </div>
     </div>
   );

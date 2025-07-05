@@ -89,20 +89,7 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
                 <Download className="w-4 h-4 mr-1" />
                 Download
               </Button>
-              {onDelete && (
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(media);
-                  }}
-                  className="bg-red-500/90 text-white hover:bg-red-600 transition-transform hover:scale-105"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete
-                </Button>
-              )}
+
             </div>
           </div>
         </div>

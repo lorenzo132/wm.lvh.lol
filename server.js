@@ -71,12 +71,32 @@ app.get('/debug', (req, res) => {
 // Serve static files from uploads directory
 app.use('/uploads', express.static(uploadsDir));
 
-// Upload endpoint
+// Upload endpoint with password validation
 app.post('/api/upload', upload.array('files'), (req, res) => {
   console.log('Upload request received');
   console.log('Files:', req.files);
+  console.log('Password provided:', !!req.body.password);
   
   try {
+    // Check if password is provided
+    const providedPassword = req.body.password;
+    const expectedPassword = process.env.VITE_UPLOAD_PASSWORD;
+    
+    if (!providedPassword) {
+      console.log('No password provided');
+      return res.status(401).json({ error: 'Upload password is required' });
+    }
+    
+    if (!expectedPassword) {
+      console.log('No upload password configured on server');
+      return res.status(500).json({ error: 'Upload password not configured on server' });
+    }
+    
+    if (providedPassword !== expectedPassword) {
+      console.log('Invalid password provided');
+      return res.status(401).json({ error: 'Invalid upload password' });
+    }
+
     if (!req.files || req.files.length === 0) {
       console.log('No files in request');
       return res.status(400).json({ error: 'No files uploaded' });

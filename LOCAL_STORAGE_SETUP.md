@@ -74,10 +74,13 @@ start-local.bat
 - `GET /uploads/:filename` - Serve uploaded files
 
 ### Features
+- **Public Gallery**: All uploaded content is publicly viewable by everyone
 - **File Upload**: Drag and drop or select files to upload
+- **Password Protection**: Each upload requires a password for security
+- **Bulk Upload**: Upload multiple files with shared metadata
 - **Local Storage**: Files are stored locally in the `/uploads` folder
 - **Metadata Management**: File metadata (name, location, date, tags) is stored in localStorage
-- **File Deletion**: Delete files from both server and local storage
+- **View & Download**: Public users can view and download all media
 - **Fallback**: If server is unavailable, falls back to localStorage-only mode
 - **Production Ready**: Optimized build served by the same server
 
@@ -106,11 +109,13 @@ project/
 
 ## Security Notes
 
+- **Public Gallery**: All uploaded content is publicly accessible to anyone
 - Files are stored locally on your machine
-- Upload password protection is still in place
+- **Password required for each upload** - only uploads are protected
 - File size limit is 50MB per file
 - Only image and video files are allowed
 - Files are served statically without authentication
+- No user authentication required for viewing or downloading
 
 ## Troubleshooting
 

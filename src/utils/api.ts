@@ -26,12 +26,15 @@ export interface FilesResponse {
   files: FileInfo[];
 }
 
-export const uploadFiles = async (files: File[]): Promise<UploadResponse> => {
+export const uploadFiles = async (files: File[], password: string): Promise<UploadResponse> => {
   const formData = new FormData();
   
   files.forEach(file => {
     formData.append('files', file);
   });
+  
+  // Add password to form data
+  formData.append('password', password);
 
   const uploadUrl = `${API_BASE_URL}/api/upload`;
   console.log('Uploading to:', uploadUrl);

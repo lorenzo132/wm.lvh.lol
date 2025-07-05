@@ -30,6 +30,14 @@ interface FileWithMetadata {
 const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
   const [files, setFiles] = useState<FileWithMetadata[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkMetadata, setBulkMetadata] = useState({
+    location: "",
+    date: new Date().toISOString().slice(0, 16),
+    tags: ""
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,9 +57,9 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
             preview,
             name: file.name,
             customName: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
-            location: "",
-            date: fileDate.toISOString().slice(0, 16), // Format for datetime-local input
-            tags: ""
+            location: bulkMode ? bulkMetadata.location : "",
+            date: bulkMode ? bulkMetadata.date : fileDate.toISOString().slice(0, 16), // Format for datetime-local input
+            tags: bulkMode ? bulkMetadata.tags : ""
           };
           
           setFiles(prev => [...prev, fileWithMetadata]);
@@ -79,12 +87,17 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
       return;
     }
 
+    if (!password.trim()) {
+      toast.error("Upload password is required");
+      return;
+    }
+
     setIsUploading(true);
 
     try {
       // Upload files to server
       const fileList = files.map(fileData => fileData.file);
-      const uploadResponse = await uploadFiles(fileList);
+      const uploadResponse = await uploadFiles(fileList, password);
 
       // Create media items with server URLs
       const mediaItems: MediaItem[] = await Promise.all(
@@ -155,6 +168,13 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
 
   const handleClose = () => {
     setFiles([]);
+    setPassword("");
+    setBulkMode(false);
+    setBulkMetadata({
+      location: "",
+      date: new Date().toISOString().slice(0, 16),
+      tags: ""
+    });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -169,6 +189,95 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Password Field */}
+          <div className="space-y-2">
+            <Label htmlFor="upload-password" className="text-sm font-medium">
+              Upload Password *
+            </Label>
+            <div className="relative">
+              <Input
+                id="upload-password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter upload password"
+                className="pr-10 bg-background/50"
+                required
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Bulk Upload Toggle */}
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="bulk-mode"
+              checked={bulkMode}
+              onChange={(e) => setBulkMode(e.target.checked)}
+              className="rounded border-border"
+            />
+            <Label htmlFor="bulk-mode" className="text-sm font-medium">
+              Bulk Upload Mode
+            </Label>
+          </div>
+
+          {/* Bulk Metadata (shown when bulk mode is enabled) */}
+          {bulkMode && files.length > 0 && (
+            <Card className="p-4 bg-gradient-card border-border">
+              <h3 className="font-semibold mb-3">Bulk Metadata</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label htmlFor="bulk-location" className="text-sm font-medium flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    Location
+                  </Label>
+                  <Input
+                    id="bulk-location"
+                    value={bulkMetadata.location}
+                    onChange={(e) => setBulkMetadata(prev => ({ ...prev, location: e.target.value }))}
+                    placeholder="e.g., Paris, France"
+                    className="bg-background/50"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bulk-date" className="text-sm font-medium flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    Date & Time
+                  </Label>
+                  <Input
+                    id="bulk-date"
+                    type="datetime-local"
+                    value={bulkMetadata.date}
+                    onChange={(e) => setBulkMetadata(prev => ({ ...prev, date: e.target.value }))}
+                    className="bg-background/50"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bulk-tags" className="text-sm font-medium flex items-center gap-1">
+                    <Tag className="w-3 h-3" />
+                    Tags
+                  </Label>
+                  <Input
+                    id="bulk-tags"
+                    value={bulkMetadata.tags}
+                    onChange={(e) => setBulkMetadata(prev => ({ ...prev, tags: e.target.value }))}
+                    placeholder="nature, sunset, mountains"
+                    className="bg-background/50"
+                  />
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* File Picker */}
           <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-gallery-accent transition-colors">
             <input
@@ -247,50 +356,62 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                           />
                         </div>
 
-                        <div>
-                          <Label htmlFor={`location-${index}`} className="text-sm font-medium flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            Location
-                          </Label>
-                          <Input
-                            id={`location-${index}`}
-                            value={fileData.location}
-                            onChange={(e) => updateFileMetadata(index, 'location', e.target.value)}
-                            placeholder="e.g., Paris, France"
-                            className="bg-background/50"
-                          />
-                        </div>
+                        {!bulkMode && (
+                          <>
+                            <div>
+                              <Label htmlFor={`location-${index}`} className="text-sm font-medium flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                Location
+                              </Label>
+                              <Input
+                                id={`location-${index}`}
+                                value={fileData.location}
+                                onChange={(e) => updateFileMetadata(index, 'location', e.target.value)}
+                                placeholder="e.g., Paris, France"
+                                className="bg-background/50"
+                              />
+                            </div>
 
-                        <div>
-                          <Label htmlFor={`date-${index}`} className="text-sm font-medium flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            Date & Time
-                          </Label>
-                          <Input
-                            id={`date-${index}`}
-                            type="datetime-local"
-                            value={fileData.date}
-                            onChange={(e) => updateFileMetadata(index, 'date', e.target.value)}
-                            className="bg-background/50"
-                          />
-                        </div>
+                            <div>
+                              <Label htmlFor={`date-${index}`} className="text-sm font-medium flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                Date & Time
+                              </Label>
+                              <Input
+                                id={`date-${index}`}
+                                type="datetime-local"
+                                value={fileData.date}
+                                onChange={(e) => updateFileMetadata(index, 'date', e.target.value)}
+                                className="bg-background/50"
+                              />
+                            </div>
 
-                        <div>
-                          <Label htmlFor={`tags-${index}`} className="text-sm font-medium flex items-center gap-1">
-                            <Tag className="w-3 h-3" />
-                            Tags
-                          </Label>
-                          <Input
-                            id={`tags-${index}`}
-                            value={fileData.tags}
-                            onChange={(e) => updateFileMetadata(index, 'tags', e.target.value)}
-                            placeholder="nature, sunset, mountains"
-                            className="bg-background/50"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Separate tags with commas
-                          </p>
-                        </div>
+                            <div>
+                              <Label htmlFor={`tags-${index}`} className="text-sm font-medium flex items-center gap-1">
+                                <Tag className="w-3 h-3" />
+                                Tags
+                              </Label>
+                              <Input
+                                id={`tags-${index}`}
+                                value={fileData.tags}
+                                onChange={(e) => updateFileMetadata(index, 'tags', e.target.value)}
+                                placeholder="nature, sunset, mountains"
+                                className="bg-background/50"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Separate tags with commas
+                              </p>
+                            </div>
+                          </>
+                        )}
+
+                        {bulkMode && (
+                          <div className="md:col-span-2">
+                            <p className="text-sm text-muted-foreground">
+                              Using bulk metadata for location, date, and tags
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Card>
