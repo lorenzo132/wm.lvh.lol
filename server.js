@@ -50,14 +50,27 @@ const storage = multer.diskStorage({
   }
 });
 
+const allowedExtensions = [
+  // Images
+  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tif', '.tiff', '.svg', '.ico', '.avif', '.heic', '.heif', '.jfif', '.pjpeg', '.pjp', '.raw', '.arw', '.cr2', '.nrw', '.k25', '.dng', '.nef', '.orf', '.sr2', '.pef', '.raf', '.rw2', '.rwl', '.srw', '.bay', '.erf', '.mef', '.mos', '.mrw', '.srw', '.x3f',
+  // Videos
+  '.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv', '.m4v', '.3gp', '.ogg', '.ogv', '.mts', '.m2ts', '.ts', '.m2v', '.f4v', '.f4p', '.f4a', '.f4b', '.divx', '.asf', '.rm', '.rmvb', '.vob', '.dat', '.mpe', '.mpg', '.mpeg'
+];
+const allowedMimeTypes = [
+  // Images
+  'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/avif', 'image/heic', 'image/heif', 'image/jfif', 'image/pjpeg', 'image/pjp', 'image/x-adobe-dng', 'image/x-canon-cr2', 'image/x-nikon-nef', 'image/x-sony-arw', 'image/x-panasonic-rw2', 'image/x-olympus-orf', 'image/x-fuji-raf', 'image/x-pentax-pef', 'image/x-samsung-srw', 'image/x-minolta-mrw', 'image/x-leaf-mos', 'image/x-sigma-x3f',
+  // Videos
+  'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/x-flv', 'video/webm', 'video/x-matroska', 'video/x-m4v', 'video/3gpp', 'video/ogg', 'video/ogv', 'video/mpeg', 'video/x-ms-asf', 'video/x-ms-mpeg', 'video/x-ms-vob', 'video/x-ms-dat', 'video/x-ms-divx', 'video/x-ms-rmvb', 'video/x-ms-ts', 'video/x-ms-mts', 'video/x-ms-m2ts', 'video/x-f4v', 'video/x-f4p', 'video/x-f4a', 'video/x-f4b'
+];
+
 const upload = multer({ 
   storage,
   fileFilter: (req, file, cb) => {
-    // Only allow images and videos
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedExtensions.includes(ext) && allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image and video files are allowed'), false);
+      cb(new Error('Only png, jpg, jpeg, webp, gif, mp4 files are allowed'), false);
     }
   },
   limits: {

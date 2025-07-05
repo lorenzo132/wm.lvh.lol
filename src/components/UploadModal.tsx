@@ -288,7 +288,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,video/*"
+              accept=".png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,.svg,.ico,.avif,.heic,.heif,.jfif,.pjpeg,.pjp,.raw,.arw,.cr2,.nrw,.k25,.dng,.nef,.orf,.sr2,.pef,.raf,.rw2,.rwl,.srw,.bay,.erf,.mef,.mos,.mrw,.srw,.x3f,.mp4,.mov,.avi,.wmv,.flv,.webm,.mkv,.m4v,.3gp,.ogg,.ogv,.mts,.m2ts,.ts,.m2v,.f4v,.f4p,.f4a,.f4b,.divx,.asf,.rm,.rmvb,.vob,.dat,.mpe,.mpg,.mpeg"
               onChange={handleFileSelect}
               className="hidden"
             />
