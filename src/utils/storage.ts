@@ -72,6 +72,13 @@ export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
       }
     });
 
+    // Sort by upload date (newest first)
+    mergedMedia.sort((a, b) => {
+      const dateA = new Date(a.date || '').getTime();
+      const dateB = new Date(b.date || '').getTime();
+      return dateB - dateA; // Descending order (newest first)
+    });
+
     return mergedMedia;
   } catch (error) {
     console.error("Failed to load media from server:", error);

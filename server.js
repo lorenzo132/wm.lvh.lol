@@ -150,6 +150,11 @@ app.get('/api/files', (req, res) => {
       };
     });
     
+    // Sort by upload date (newest first)
+    fileList.sort((a, b) => {
+      return new Date(b.uploadedAt) - new Date(a.uploadedAt);
+    });
+    
     res.json({ files: fileList });
   } catch (error) {
     console.error('Error reading files:', error);
