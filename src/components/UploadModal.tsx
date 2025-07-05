@@ -99,7 +99,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
 
     try {
       // Extract dimensions for all files before upload
-      let filesWithDimensions = await Promise.all(
+      const filesWithDimensions = await Promise.all(
         files.map(async (fileData) => {
           let dimensions;
           if (fileData.file.type.startsWith('image/')) {
@@ -110,17 +110,6 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
           return { ...fileData, dimensions };
         })
       );
-
-      // If bulkMode, apply current bulkMetadata to all files
-      if (bulkMode) {
-        filesWithDimensions = filesWithDimensions.map(fileData => ({
-          ...fileData,
-          location: bulkMetadata.location,
-          date: bulkMetadata.date,
-          tags: bulkMetadata.tags,
-          photographer: bulkMetadata.photographer
-        }));
-      }
 
       // Upload files to server
       const fileList = filesWithDimensions.map(fileData => fileData.file);
@@ -433,4 +422,53 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                             </div>
 
                             <div>
-                              <Label htmlFor={`
+                              <Label htmlFor={`photographer-${index}`} className="text-sm font-medium flex items-center gap-1">
+                                <Image className="w-3 h-3" />
+                                Photographer
+                              </Label>
+                              <Input
+                                id={`photographer-${index}`}
+                                value={fileData.photographer || ''}
+                                onChange={(e) => updateFileMetadata(index, 'photographer', e.target.value)}
+                                placeholder="e.g., Jane Doe"
+                                className="bg-background/50"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {bulkMode && (
+                          <div className="md:col-span-2">
+                            <p className="text-sm text-muted-foreground">
+                              Using bulk metadata for location, date, and tags
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button variant="outline" onClick={handleClose} disabled={isUploading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={files.length === 0 || isUploading}
+              className="bg-gradient-primary hover:opacity-90 transition-opacity"
+            >
+              {isUploading ? "Uploading..." : `Upload ${files.length} File${files.length !== 1 ? 's' : ''}`}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default UploadModal;
