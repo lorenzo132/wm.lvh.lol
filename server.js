@@ -16,8 +16,16 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Enable CORS for frontend
-app.use(cors());
+// Enable CORS for frontend (production and local dev)
+app.use(cors({
+  origin: [
+    'https://wmg.lvh.lol',
+    'https://wm.lvh.lol',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  credentials: true
+}));
 
 // Parse JSON bodies
 app.use(express.json());
