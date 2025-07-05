@@ -131,8 +131,6 @@ const Index = () => {
     document.body.removeChild(link);
   };
 
-
-
   const handleUpload = () => {
     // Check if password is configured
     if (!hasUploadPassword()) {
@@ -144,12 +142,11 @@ const Index = () => {
     setIsUploadModalOpen(true);
   };
 
-
-
-  const handleUploadComplete = (newMediaItems: MediaItem[]) => {
-    setMediaItems(prev => [...newMediaItems, ...prev]);
+  const handleUploadComplete = async () => {
+    const serverMedia = await loadMediaFromServer();
+    setMediaItems(serverMedia);
     setIsUploadModalOpen(false);
-    toast.success(`Added ${newMediaItems.length} new media item${newMediaItems.length !== 1 ? 's' : ''} to your gallery`);
+    toast.success('Gallery updated with new uploads!');
   };
 
   const handleDeleteMedia = async (media: MediaItem, password: string) => {

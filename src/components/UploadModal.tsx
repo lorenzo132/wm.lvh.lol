@@ -14,7 +14,7 @@ import { toast } from "sonner";
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (mediaItems: MediaItem[]) => void;
+  onUpload: () => void;
 }
 
 interface FileWithMetadata {
@@ -149,7 +149,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
         })
       );
 
-      onUpload(mediaItems);
+      onUpload();
       toast.success(uploadResponse.message);
       handleClose();
     } catch (error) {
