@@ -98,10 +98,23 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     setIsUploading(true);
 
     try {
+      // Extract dimensions for all files before upload
+      const filesWithDimensions = await Promise.all(
+        files.map(async (fileData) => {
+          let dimensions;
+          if (fileData.file.type.startsWith('image/')) {
+            dimensions = await getImageDimensions(fileData.preview);
+          } else if (fileData.file.type.startsWith('video/')) {
+            dimensions = await getVideoDimensions(fileData.preview);
+          }
+          return { ...fileData, dimensions };
+        })
+      );
+
       // Upload files to server
-      const fileList = files.map(fileData => fileData.file);
-      // Prepare metadata array for all files
-      const metadataArray = files.map(fileData => {
+      const fileList = filesWithDimensions.map(fileData => fileData.file);
+      // Prepare metadata array for all files, now including dimensions
+      const metadataArray = filesWithDimensions.map(fileData => {
         const tagsValue = typeof fileData.tags === 'string' ? fileData.tags : '';
         return {
           name: fileData.customName || fileData.name,
@@ -109,45 +122,10 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
           location: fileData.location,
           tags: tagsValue.split(',').map(tag => tag.trim()).filter(Boolean),
           photographer: fileData.photographer || '',
-          // dimensions will be set after upload if needed
+          dimensions: fileData.dimensions,
         };
       });
       const uploadResponse = await uploadFiles(fileList, password, metadataArray);
-
-      // Create media items with server URLs
-      const mediaItems: MediaItem[] = await Promise.all(
-        files.map(async (fileData, index) => {
-          const uploadedFile = uploadResponse.files[index];
-          
-          // Get image/video dimensions
-          let dimensions;
-          if (fileData.file.type.startsWith('image/')) {
-            dimensions = await getImageDimensions(fileData.preview);
-          } else if (fileData.file.type.startsWith('video/')) {
-            dimensions = await getVideoDimensions(fileData.preview);
-          }
-
-          const tagsValue = typeof fileData.tags === 'string' ? fileData.tags : '';
-          if (typeof fileData.tags !== 'string') {
-            console.warn('Unexpected tags value:', fileData.tags);
-          }
-          const mediaItem: MediaItem = {
-            id: `upload-${Date.now()}-${index}`,
-            name: fileData.customName || fileData.name,
-            url: uploadedFile.url,
-            thumbnail: fileData.preview,
-            type: fileData.file.type.startsWith('video/') ? 'video' : 'image',
-            date: uploadedFile.uploadedAt || new Date().toISOString(), // Use server timestamp
-            location: fileData.location || undefined,
-            size: uploadedFile.size,
-            dimensions,
-            tags: tagsValue.split(',').map(tag => tag.trim()).filter(Boolean).length > 0 ? tagsValue.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
-            photographer: fileData.photographer || undefined
-          };
-
-          return mediaItem;
-        })
-      );
 
       onUpload();
       toast.success(uploadResponse.message);
