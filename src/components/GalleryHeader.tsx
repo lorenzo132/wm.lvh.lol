@@ -2,10 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Search, SortAsc, SortDesc, Upload, Filter, Calendar, X, ChevronDown, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Search, SortAsc, SortDesc, Upload, Filter, Calendar, X } from "lucide-react";
 
 interface GalleryHeaderProps {
   searchTerm: string;
@@ -51,53 +48,47 @@ const GalleryHeader = ({
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
           {/* Search with Autocomplete */}
           <div className="relative flex-1 lg:w-80">
-            <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-              <PopoverTrigger asChild>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-                  <Input
-                    placeholder="Search media, location, photographer..."
-                    value={searchTerm}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    onFocus={() => setSearchOpen(true)}
-                    className="pl-10 bg-background/50 border-border focus:border-gallery-accent transition-colors"
-                  />
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+              <Input
+                placeholder="Search media, location, photographer..."
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+                onFocus={() => setSearchOpen(true)}
+                onBlur={() => {
+                  // Delay closing to allow clicking on suggestions
+                  setTimeout(() => setSearchOpen(false), 150);
+                }}
+                className="pl-10 bg-background/50 border-border focus:border-gallery-accent transition-colors"
+              />
+            </div>
+            
+            {/* Autocomplete Dropdown */}
+            {searchOpen && searchSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                <div className="p-1">
+                  {searchSuggestions
+                    .filter(suggestion => 
+                      suggestion.toLowerCase().includes(searchTerm.toLowerCase()) && 
+                      suggestion.toLowerCase() !== searchTerm.toLowerCase()
+                    )
+                    .slice(0, 10)
+                    .map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors"
+                        onClick={() => {
+                          onSearchChange(suggestion);
+                          setSearchOpen(false);
+                        }}
+                        onMouseDown={(e) => e.preventDefault()} // Prevent input blur
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
                 </div>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search suggestions..." />
-                  <CommandList>
-                    <CommandEmpty>No suggestions found.</CommandEmpty>
-                    <CommandGroup>
-                      {searchSuggestions
-                        .filter(suggestion => 
-                          suggestion.toLowerCase().includes(searchTerm.toLowerCase())
-                        )
-                        .slice(0, 10) // Limit to 10 suggestions
-                        .map((suggestion) => (
-                          <CommandItem
-                            key={suggestion}
-                            value={suggestion}
-                            onSelect={(currentValue) => {
-                              onSearchChange(currentValue);
-                              setSearchOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                searchTerm === suggestion ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {suggestion}
-                          </CommandItem>
-                        ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+              </div>
+            )}
           </div>
 
           {/* Date Filter */}
