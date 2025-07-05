@@ -91,8 +91,11 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
                   <video
                     src={media.url}
                     controls
+                    playsInline
+                    preload="metadata"
                     className="block max-w-full max-h-[90vh] object-contain mx-auto rounded-lg shadow-2xl"
                     autoPlay={false}
+                    crossOrigin="anonymous"
                   />
                 ) : (
                   <img
