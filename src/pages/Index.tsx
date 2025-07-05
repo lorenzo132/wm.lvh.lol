@@ -98,7 +98,25 @@ const Index = () => {
     });
 
     return filtered;
-  }, [mediaItems, searchTerm, sortBy, sortOrder]);
+  }, [mediaItems, searchTerm, dateFilter, sortBy, sortOrder]);
+
+  // Group media items by date and location
+  const groupedMedia = useMemo(() => {
+    const groups: { [key: string]: MediaItem[] } = {};
+    
+    filteredAndSortedMedia.forEach((media) => {
+      const date = media.date ? new Date(media.date).toDateString() : 'Unknown Date';
+      const location = media.location || 'Unknown Location';
+      const groupKey = `${date} - ${location}`;
+      
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(media);
+    });
+    
+    return groups;
+  }, [filteredAndSortedMedia]);
 
   const handleSortChange = (newSortBy: SortBy, newSortOrder: SortOrder) => {
     setSortBy(newSortBy);
@@ -201,16 +219,37 @@ const Index = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {filteredAndSortedMedia.map((media) => (
-                <MediaCard
-                  key={media.id}
-                  media={media}
-                  onView={handleViewMedia}
-                  onDownload={handleDownloadMedia}
-                  onDelete={handleDeleteMedia}
-                />
-              ))}
+            <div className="space-y-8">
+              {Object.entries(groupedMedia).map(([groupKey, mediaItems], groupIndex) => {
+                const [date, location] = groupKey.split(' - ');
+                return (
+                  <div key={groupKey}>
+                    {/* Group Header */}
+                    <div className="mb-4">
+                      <h2 className="text-xl font-semibold text-foreground">{date}</h2>
+                      <h3 className="text-lg font-medium text-muted-foreground">{location}</h3>
+                    </div>
+                    
+                    {/* Media Grid for this group */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                      {mediaItems.map((media) => (
+                        <MediaCard
+                          key={media.id}
+                          media={media}
+                          onView={handleViewMedia}
+                          onDownload={handleDownloadMedia}
+                          onDelete={handleDeleteMedia}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* Thin white separator between groups */}
+                    {groupIndex < Object.keys(groupedMedia).length - 1 && (
+                      <div className="mt-8 pt-8 border-t border-white/10" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
