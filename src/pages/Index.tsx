@@ -179,6 +179,10 @@ const Index = () => {
               onSearchChange={setSearchTerm}
               dateFilter={dateFilter}
               onDateFilterChange={setDateFilter}
+              onDateSearch={() => {
+                // The date filtering happens automatically, but this provides user feedback
+                // You could add a toast notification here if desired
+              }}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortChange={handleSortChange}
