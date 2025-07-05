@@ -7,6 +7,7 @@ export interface UploadedFile {
   url: string;
   size: number;
   mimetype: string;
+  uploadedAt: string;
 }
 
 export interface FileInfo {

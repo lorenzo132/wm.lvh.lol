@@ -75,6 +75,45 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Debug endpoint to show file dates
+app.get('/api/debug/files', (req, res) => {
+  try {
+    const files = fs.readdirSync(uploadsDir);
+    const fileList = files.map(filename => {
+      const filePath = path.join(uploadsDir, filename);
+      const stats = fs.statSync(filePath);
+      
+      // Extract timestamp from filename (format: name-timestamp.ext)
+      let uploadedAt = stats.mtime; // fallback to file modification time
+      const timestampMatch = filename.match(/-(\d+)\./);
+      if (timestampMatch) {
+        const timestamp = parseInt(timestampMatch[1]);
+        if (!isNaN(timestamp)) {
+          uploadedAt = new Date(timestamp);
+        }
+      }
+      
+      return {
+        filename,
+        size: stats.size,
+        mtime: stats.mtime,
+        uploadedAt: uploadedAt,
+        extractedTimestamp: timestampMatch ? timestampMatch[1] : null
+      };
+    });
+    
+    // Sort by upload date (newest first)
+    fileList.sort((a, b) => {
+      return new Date(b.uploadedAt) - new Date(a.uploadedAt);
+    });
+    
+    res.json({ files: fileList });
+  } catch (error) {
+    console.error('Error reading files:', error);
+    res.status(500).json({ error: 'Failed to read files' });
+  }
+});
+
 // Debug page
 app.get('/debug', (req, res) => {
   res.sendFile(path.join(__dirname, 'debug.html'));
@@ -114,12 +153,14 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
       return res.status(400).json({ error: 'No files uploaded' });
     }
 
+    const uploadTime = new Date();
     const uploadedFiles = req.files.map(file => ({
       originalName: file.originalname,
       filename: file.filename,
       url: `/uploads/${file.filename}`,
       size: file.size,
-      mimetype: file.mimetype
+      mimetype: file.mimetype,
+      uploadedAt: uploadTime.toISOString()
     }));
 
     console.log('Files uploaded successfully:', uploadedFiles);
@@ -142,11 +183,22 @@ app.get('/api/files', (req, res) => {
     const fileList = files.map(filename => {
       const filePath = path.join(uploadsDir, filename);
       const stats = fs.statSync(filePath);
+      
+      // Extract timestamp from filename (format: name-timestamp.ext)
+      let uploadedAt = stats.mtime; // fallback to file modification time
+      const timestampMatch = filename.match(/-(\d+)\./);
+      if (timestampMatch) {
+        const timestamp = parseInt(timestampMatch[1]);
+        if (!isNaN(timestamp)) {
+          uploadedAt = new Date(timestamp);
+        }
+      }
+      
       return {
         filename,
         url: `/uploads/${filename}`,
         size: stats.size,
-        uploadedAt: stats.mtime
+        uploadedAt: uploadedAt
       };
     });
     

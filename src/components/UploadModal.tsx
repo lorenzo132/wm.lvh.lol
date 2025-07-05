@@ -118,7 +118,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
             url: uploadedFile.url,
             thumbnail: fileData.preview,
             type: fileData.file.type.startsWith('video/') ? 'video' : 'image',
-            date: new Date(fileData.date).toISOString(),
+            date: uploadedFile.uploadedAt || new Date().toISOString(), // Use server timestamp
             location: fileData.location || undefined,
             size: uploadedFile.size,
             dimensions,

@@ -76,6 +76,7 @@ export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
     mergedMedia.sort((a, b) => {
       const dateA = new Date(a.date || '').getTime();
       const dateB = new Date(b.date || '').getTime();
+      console.log(`Sorting: ${a.name} (${a.date}) vs ${b.name} (${b.date})`);
       return dateB - dateA; // Descending order (newest first)
     });
 
