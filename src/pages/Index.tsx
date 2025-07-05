@@ -50,6 +50,7 @@ const Index = () => {
       const matchesSearch = (
         media.name.toLowerCase().includes(searchLower) ||
         media.location?.toLowerCase().includes(searchLower) ||
+        media.photographer?.toLowerCase().includes(searchLower) ||
         media.tags?.some(tag => tag.toLowerCase().includes(searchLower))
       );
 
@@ -99,6 +100,38 @@ const Index = () => {
 
     return filtered;
   }, [mediaItems, searchTerm, dateFilter, sortBy, sortOrder]);
+
+  // Extract unique values for search autocomplete
+  const searchSuggestions = useMemo(() => {
+    const suggestions: string[] = [];
+    
+    // Add unique locations
+    const locations = [...new Set(mediaItems.map(item => item.location).filter(Boolean))];
+    suggestions.push(...locations);
+    
+    // Add unique photographers
+    const photographers = [...new Set(mediaItems.map(item => item.photographer).filter(Boolean))];
+    suggestions.push(...photographers);
+    
+    // Add unique dates (formatted as readable strings)
+    const dates = [...new Set(mediaItems.map(item => {
+      if (item.date) {
+        return new Date(item.date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      }
+      return null;
+    }).filter(Boolean))];
+    suggestions.push(...dates);
+    
+    // Add unique tag names
+    const tags = [...new Set(mediaItems.flatMap(item => item.tags || []))];
+    suggestions.push(...tags);
+    
+    return suggestions;
+  }, [mediaItems]);
 
   // Group media items by date and location
   const groupedMedia = useMemo(() => {
@@ -189,6 +222,7 @@ const Index = () => {
             <GalleryHeader
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
+              searchSuggestions={searchSuggestions}
               dateFilter={dateFilter}
               onDateFilterChange={setDateFilter}
               onDateSearch={() => {

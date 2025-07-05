@@ -2,11 +2,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, SortAsc, SortDesc, Upload, Filter, Calendar, X } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Search, SortAsc, SortDesc, Upload, Filter, Calendar, X, ChevronDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface GalleryHeaderProps {
   searchTerm: string;
   onSearchChange: (term: string) => void;
+  searchSuggestions: string[];
   dateFilter: string;
   onDateFilterChange: (date: string) => void;
   onDateSearch: () => void;
@@ -20,6 +24,7 @@ interface GalleryHeaderProps {
 const GalleryHeader = ({
   searchTerm,
   onSearchChange,
+  searchSuggestions,
   dateFilter,
   onDateFilterChange,
   onDateSearch,
@@ -29,6 +34,8 @@ const GalleryHeader = ({
   onUpload,
   totalItems
 }: GalleryHeaderProps) => {
+  const [searchOpen, setSearchOpen] = useState(false);
+
   return (
     <div className="bg-gradient-card border border-border rounded-xl p-6 shadow-card-gallery">
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
@@ -42,15 +49,55 @@ const GalleryHeader = ({
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-          {/* Search */}
+          {/* Search with Autocomplete */}
           <div className="relative flex-1 lg:w-80">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search media..."
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 bg-background/50 border-border focus:border-gallery-accent transition-colors"
-            />
+            <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+              <PopoverTrigger asChild>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+                  <Input
+                    placeholder="Search media, location, photographer..."
+                    value={searchTerm}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    onFocus={() => setSearchOpen(true)}
+                    className="pl-10 bg-background/50 border-border focus:border-gallery-accent transition-colors"
+                  />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search suggestions..." />
+                  <CommandList>
+                    <CommandEmpty>No suggestions found.</CommandEmpty>
+                    <CommandGroup>
+                      {searchSuggestions
+                        .filter(suggestion => 
+                          suggestion.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .slice(0, 10) // Limit to 10 suggestions
+                        .map((suggestion) => (
+                          <CommandItem
+                            key={suggestion}
+                            value={suggestion}
+                            onSelect={(currentValue) => {
+                              onSearchChange(currentValue);
+                              setSearchOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                searchTerm === suggestion ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {suggestion}
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Date Filter */}

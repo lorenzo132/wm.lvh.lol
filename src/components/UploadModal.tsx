@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,10 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Upload, X, Calendar, MapPin, Tag, Image, Video } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Upload, X, Calendar, MapPin, Tag, Image, Video, ChevronDown, Check } from "lucide-react";
 import { MediaItem } from "@/types/media";
 import { uploadFiles } from "@/utils/api";
+import { loadMediaFromServer } from "@/utils/storage";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -40,7 +44,34 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     tags: "",
     photographer: ""
   });
+  const [existingLocations, setExistingLocations] = useState<string[]>([]);
+  const [existingPhotographers, setExistingPhotographers] = useState<string[]>([]);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [photographerOpen, setPhotographerOpen] = useState(false);
+  const [bulkLocationOpen, setBulkLocationOpen] = useState(false);
+  const [bulkPhotographerOpen, setBulkPhotographerOpen] = useState(false);
+  const [fileLocationOpen, setFileLocationOpen] = useState<{ [key: number]: boolean }>({});
+  const [filePhotographerOpen, setFilePhotographerOpen] = useState<{ [key: number]: boolean }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load existing media data for autocomplete
+  useEffect(() => {
+    const loadExistingData = async () => {
+      try {
+        const mediaItems = await loadMediaFromServer();
+        const locations = [...new Set(mediaItems.map(item => item.location).filter(Boolean))];
+        const photographers = [...new Set(mediaItems.map(item => item.photographer).filter(Boolean))];
+        setExistingLocations(locations);
+        setExistingPhotographers(photographers);
+      } catch (error) {
+        console.error('Failed to load existing media data:', error);
+      }
+    };
+
+    if (isOpen) {
+      loadExistingData();
+    }
+  }, [isOpen]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
@@ -250,13 +281,47 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                     <MapPin className="w-3 h-3" />
                     Location
                   </Label>
-                  <Input
-                    id="bulk-location"
-                    value={bulkMetadata.location}
-                    onChange={(e) => handleBulkMetadataChange('location', e.target.value)}
-                    placeholder="e.g., Paris, France"
-                    className="bg-background/50"
-                  />
+                  <Popover open={bulkLocationOpen} onOpenChange={setBulkLocationOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={bulkLocationOpen}
+                        className="w-full justify-between bg-background/50"
+                      >
+                        {bulkMetadata.location || "Select location..."}
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search locations..." />
+                        <CommandList>
+                          <CommandEmpty>No location found.</CommandEmpty>
+                          <CommandGroup>
+                            {existingLocations.map((location) => (
+                              <CommandItem
+                                key={location}
+                                value={location}
+                                onSelect={(currentValue) => {
+                                  handleBulkMetadataChange('location', currentValue);
+                                  setBulkLocationOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    bulkMetadata.location === location ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {location}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <Label htmlFor="bulk-date" className="text-sm font-medium flex items-center gap-1">
@@ -289,13 +354,47 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                     <Image className="w-3 h-3" />
                     Photographer
                   </Label>
-                  <Input
-                    id="bulk-photographer"
-                    value={bulkMetadata.photographer}
-                    onChange={(e) => handleBulkMetadataChange('photographer', e.target.value)}
-                    placeholder="e.g., Jane Doe"
-                    className="bg-background/50"
-                  />
+                  <Popover open={bulkPhotographerOpen} onOpenChange={setBulkPhotographerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={bulkPhotographerOpen}
+                        className="w-full justify-between bg-background/50"
+                      >
+                        {bulkMetadata.photographer || "Select photographer..."}
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search photographers..." />
+                        <CommandList>
+                          <CommandEmpty>No photographer found.</CommandEmpty>
+                          <CommandGroup>
+                            {existingPhotographers.map((photographer) => (
+                              <CommandItem
+                                key={photographer}
+                                value={photographer}
+                                onSelect={(currentValue) => {
+                                  handleBulkMetadataChange('photographer', currentValue);
+                                  setBulkPhotographerOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    bulkMetadata.photographer === photographer ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {photographer}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </Card>
@@ -386,13 +485,50 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 <MapPin className="w-3 h-3" />
                                 Location
                               </Label>
-                              <Input
-                                id={`location-${index}`}
-                                value={fileData.location}
-                                onChange={(e) => updateFileMetadata(index, 'location', e.target.value)}
-                                placeholder="e.g., Paris, France"
-                                className="bg-background/50"
-                              />
+                              <Popover 
+                                open={fileLocationOpen[index] || false} 
+                                onOpenChange={(open) => setFileLocationOpen(prev => ({ ...prev, [index]: open }))}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={fileLocationOpen[index] || false}
+                                    className="w-full justify-between bg-background/50"
+                                  >
+                                    {fileData.location || "Select location..."}
+                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0">
+                                  <Command>
+                                    <CommandInput placeholder="Search locations..." />
+                                    <CommandList>
+                                      <CommandEmpty>No location found.</CommandEmpty>
+                                      <CommandGroup>
+                                        {existingLocations.map((location) => (
+                                          <CommandItem
+                                            key={location}
+                                            value={location}
+                                            onSelect={(currentValue) => {
+                                              updateFileMetadata(index, 'location', currentValue);
+                                              setFileLocationOpen(prev => ({ ...prev, [index]: false }));
+                                            }}
+                                          >
+                                            <Check
+                                              className={cn(
+                                                "mr-2 h-4 w-4",
+                                                fileData.location === location ? "opacity-100" : "opacity-0"
+                                              )}
+                                            />
+                                            {location}
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                             </div>
 
                             <div>
@@ -431,13 +567,50 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 <Image className="w-3 h-3" />
                                 Photographer
                               </Label>
-                              <Input
-                                id={`photographer-${index}`}
-                                value={fileData.photographer || ''}
-                                onChange={(e) => updateFileMetadata(index, 'photographer', e.target.value)}
-                                placeholder="e.g., Jane Doe"
-                                className="bg-background/50"
-                              />
+                              <Popover 
+                                open={filePhotographerOpen[index] || false} 
+                                onOpenChange={(open) => setFilePhotographerOpen(prev => ({ ...prev, [index]: open }))}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={filePhotographerOpen[index] || false}
+                                    className="w-full justify-between bg-background/50"
+                                  >
+                                    {fileData.photographer || "Select photographer..."}
+                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0">
+                                  <Command>
+                                    <CommandInput placeholder="Search photographers..." />
+                                    <CommandList>
+                                      <CommandEmpty>No photographer found.</CommandEmpty>
+                                      <CommandGroup>
+                                        {existingPhotographers.map((photographer) => (
+                                          <CommandItem
+                                            key={photographer}
+                                            value={photographer}
+                                            onSelect={(currentValue) => {
+                                              updateFileMetadata(index, 'photographer', currentValue);
+                                              setFilePhotographerOpen(prev => ({ ...prev, [index]: false }));
+                                            }}
+                                          >
+                                            <Check
+                                              className={cn(
+                                                "mr-2 h-4 w-4",
+                                                fileData.photographer === photographer ? "opacity-100" : "opacity-0"
+                                              )}
+                                            />
+                                            {photographer}
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                             </div>
                           </>
                         )}
