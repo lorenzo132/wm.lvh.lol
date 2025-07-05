@@ -67,7 +67,12 @@ const upload = multer({
 
 // Test endpoint
 app.get('/api/test', (req, res) => {
-  res.json({ message: 'Server is running!', timestamp: new Date().toISOString() });
+  res.json({ 
+    message: 'Server is running!', 
+    timestamp: new Date().toISOString(),
+    uploadPasswordConfigured: !!process.env.UPLOAD_PASSWORD,
+    uploadPasswordLength: process.env.UPLOAD_PASSWORD ? process.env.UPLOAD_PASSWORD.length : 0
+  });
 });
 
 // Debug page

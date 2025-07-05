@@ -73,8 +73,12 @@ export const getFiles = async (): Promise<FilesResponse> => {
 export const deleteFile = async (filename: string, password: string): Promise<{ success: boolean; message: string }> => {
   console.log('Deleting file:', filename);
   console.log('Password provided:', password ? '***' : 'none');
+  console.log('API Base URL:', API_BASE_URL);
   
-  const response = await fetch(`${API_BASE_URL}/api/files/${encodeURIComponent(filename)}`, {
+  const deleteUrl = `${API_BASE_URL}/api/files/${encodeURIComponent(filename)}`;
+  console.log('Delete URL:', deleteUrl);
+  
+  const response = await fetch(deleteUrl, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',

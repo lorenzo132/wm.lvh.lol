@@ -93,14 +93,19 @@ export const deleteMediaFromServer = async (media: MediaItem, password: string):
       throw new Error('Invalid file URL');
     }
 
-    await deleteFile(filename, password);
+    const result = await deleteFile(filename, password);
+    console.log('Delete API result:', result);
     
-    // Remove from local storage
-    const localMedia = loadMediaFromStorage();
-    const updatedMedia = localMedia.filter(item => item.id !== media.id);
-    saveMediaToStorage(updatedMedia);
+    // Only remove from local storage if the server deletion was successful
+    if (result.success) {
+      // Remove from local storage
+      const localMedia = loadMediaFromStorage();
+      const updatedMedia = localMedia.filter(item => item.id !== media.id);
+      saveMediaToStorage(updatedMedia);
+      console.log('Removed from local storage');
+    }
     
-    return true;
+    return result.success;
   } catch (error) {
     console.error("Failed to delete media from server:", error);
     return false;
