@@ -84,6 +84,11 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     ));
   };
 
+  const handleBulkMetadataChange = (field: keyof typeof bulkMetadata, value: string) => {
+    setBulkMetadata(prev => ({ ...prev, [field]: value }));
+    setFiles(prevFiles => prevFiles.map(file => ({ ...file, [field]: value })));
+  };
+
   const handleUpload = async () => {
     if (files.length === 0) {
       toast.error("Please select at least one file");
@@ -248,7 +253,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                   <Input
                     id="bulk-location"
                     value={bulkMetadata.location}
-                    onChange={(e) => setBulkMetadata(prev => ({ ...prev, location: e.target.value }))}
+                    onChange={(e) => handleBulkMetadataChange('location', e.target.value)}
                     placeholder="e.g., Paris, France"
                     className="bg-background/50"
                   />
@@ -262,7 +267,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                     id="bulk-date"
                     type="datetime-local"
                     value={bulkMetadata.date}
-                    onChange={(e) => setBulkMetadata(prev => ({ ...prev, date: e.target.value }))}
+                    onChange={(e) => handleBulkMetadataChange('date', e.target.value)}
                     className="bg-background/50"
                   />
                 </div>
@@ -274,7 +279,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                   <Input
                     id="bulk-tags"
                     value={bulkMetadata.tags}
-                    onChange={(e) => setBulkMetadata(prev => ({ ...prev, tags: e.target.value }))}
+                    onChange={(e) => handleBulkMetadataChange('tags', e.target.value)}
                     placeholder="nature, sunset, mountains"
                     className="bg-background/50"
                   />
@@ -287,7 +292,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                   <Input
                     id="bulk-photographer"
                     value={bulkMetadata.photographer}
-                    onChange={(e) => setBulkMetadata(prev => ({ ...prev, photographer: e.target.value }))}
+                    onChange={(e) => handleBulkMetadataChange('photographer', e.target.value)}
                     placeholder="e.g., Jane Doe"
                     className="bg-background/50"
                   />
