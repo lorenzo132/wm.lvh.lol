@@ -11,10 +11,20 @@ export interface UploadedFile {
 }
 
 export interface FileInfo {
-  filename: string;
+  id?: string;
+  name?: string;
   url: string;
+  thumbnail?: string;
+  type?: string;
+  date?: string;
+  location?: string;
   size: number;
+  dimensions?: { width: number; height: number };
+  tags?: string[];
+  photographer?: string;
+  mimetype?: string;
   uploadedAt: string;
+  filename: string;
 }
 
 export interface UploadResponse {

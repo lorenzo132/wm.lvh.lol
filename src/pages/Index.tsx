@@ -8,7 +8,7 @@ import UploadModal from "@/components/UploadModal";
 import { Button } from "@/components/ui/button";
 import { sampleMedia } from "@/data/sampleMedia";
 import { MediaItem, SortBy, SortOrder } from "@/types/media";
-import { saveMediaToStorage, loadMediaFromStorage, loadMediaFromServer, deleteMediaFromServer } from "@/utils/storage";
+import { loadMediaFromServer, deleteMediaFromServer } from "@/utils/storage";
 import { hasUploadPassword } from "@/utils/passwordManager";
 
 const Index = () => {
@@ -41,13 +41,6 @@ const Index = () => {
       console.warn("VITE_UPLOAD_PASSWORD environment variable is not set. Upload functionality will be disabled.");
     }
   }, []);
-
-  // Save media to localStorage whenever mediaItems changes
-  useEffect(() => {
-    if (mediaItems.length > 0) {
-      saveMediaToStorage(mediaItems);
-    }
-  }, [mediaItems]);
 
   // Filter and sort media items
   const filteredAndSortedMedia = useMemo(() => {
