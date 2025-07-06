@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, MapPin, Calendar, Video, Eye, Trash2 } from "lucide-react";
+import { Download, MapPin, Calendar, Video, Eye, Trash2, Edit } from "lucide-react";
 import { MediaItem } from "@/types/media";
 
 interface MediaCardProps {
@@ -10,9 +10,10 @@ interface MediaCardProps {
   onView: (media: MediaItem) => void;
   onDownload: (media: MediaItem) => void;
   onDelete?: (media: MediaItem, password: string) => Promise<void>;
+  onEdit: (media: MediaItem) => void;
 }
 
-const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
+const MediaCard = ({ media, onView, onDownload, onDelete, onEdit }: MediaCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
@@ -187,6 +188,20 @@ const MediaCard = ({ media, onView, onDownload, onDelete }: MediaCardProps) => {
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
                   {isDeleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              )}
+              {showDeleteButton && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(media);
+                  }}
+                  className="bg-blue-600/95 text-white hover:bg-blue-700 transition-transform hover:scale-105 shadow-lg border border-blue-500 min-w-fit"
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit
                 </Button>
               )}
             </div>
