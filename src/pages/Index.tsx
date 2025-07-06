@@ -25,7 +25,7 @@ const Index = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editMedia, setEditMedia] = useState<MediaItem | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', location: '', tags: '', photographer: '', password: '' });
+  const [editForm, setEditForm] = useState({ name: '', location: '', tags: '', photographer: '', date: '', password: '' });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -233,6 +233,7 @@ const Index = () => {
       location: media.location || '',
       tags: (media.tags || []).join(', '),
       photographer: media.photographer || '',
+      date: media.date ? new Date(media.date).toISOString().slice(0, 16) : '',
       password: ''
     });
     setIsEditModalOpen(true);
@@ -391,6 +392,16 @@ const Index = () => {
                     </Command>
                   </PopoverContent>
                 </Popover>
+              </div>
+              {/* Date/Time Picker */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Date & Time</label>
+                <Input
+                  type="datetime-local"
+                  value={editForm.date}
+                  onChange={e => handleEditFormChange('date', e.target.value)}
+                  className="bg-background/50"
+                />
               </div>
               {/* Tags input remains free text for now */}
               <Input
