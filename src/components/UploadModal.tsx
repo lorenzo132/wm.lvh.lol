@@ -127,22 +127,90 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
   const createNewLocation = (location: string, isBulk: boolean = false, fileIndex?: number) => {
     if (!location.trim()) return;
     
-    const trimmedLocation = location.trim();
+    let formattedLocation = location.trim();
     
-    // Add to existing locations if not already present
-    if (!existingLocations.includes(trimmedLocation)) {
-      setExistingLocations(prev => [...prev, trimmedLocation]);
+    // Check if location already has country code format (city, CC)
+    const locationPattern = /^[^,]+,\s*[A-Z]{2}$/;
+    if (!locationPattern.test(formattedLocation)) {
+      // Auto-detect country code using geocoding API
+      detectCountryCode(formattedLocation).then(countryCode => {
+        if (countryCode) {
+          const finalLocation = `${formattedLocation}, ${countryCode}`;
+          
+          // Add to existing locations if not already present
+          if (!existingLocations.includes(finalLocation)) {
+            setExistingLocations(prev => [...prev, finalLocation]);
+          }
+          
+          // Update the appropriate metadata
+          if (isBulk) {
+            handleBulkMetadataChange('location', finalLocation);
+            setBulkLocationSearch("");
+            setBulkLocationOpen(false);
+          } else if (fileIndex !== undefined) {
+            updateFileMetadata(fileIndex, 'location', finalLocation);
+            setFileLocationSearch(prev => ({ ...prev, [fileIndex]: "" }));
+            setFileLocationOpen(prev => ({ ...prev, [fileIndex]: false }));
+          }
+        } else {
+          toast.error(`Could not detect country for "${formattedLocation}". Please try a different city name.`);
+        }
+      }).catch(error => {
+        console.error('Geocoding error:', error);
+        toast.error(`Failed to detect country for "${formattedLocation}". Please try again.`);
+      });
+      return; // Exit early, the async function will handle the rest
+    }
+    
+    // If already in correct format, proceed normally
+    if (!existingLocations.includes(formattedLocation)) {
+      setExistingLocations(prev => [...prev, formattedLocation]);
     }
     
     // Update the appropriate metadata
     if (isBulk) {
-      handleBulkMetadataChange('location', trimmedLocation);
+      handleBulkMetadataChange('location', formattedLocation);
       setBulkLocationSearch("");
       setBulkLocationOpen(false);
     } else if (fileIndex !== undefined) {
-      updateFileMetadata(fileIndex, 'location', trimmedLocation);
+      updateFileMetadata(fileIndex, 'location', formattedLocation);
       setFileLocationSearch(prev => ({ ...prev, [fileIndex]: "" }));
       setFileLocationOpen(prev => ({ ...prev, [fileIndex]: false }));
+    }
+  };
+
+  const detectCountryCode = async (cityName: string): Promise<string | null> => {
+    try {
+      // Use Nominatim API to geocode the city
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1&addressdetails=1`,
+        {
+          headers: {
+            'Accept-Language': 'en',
+            'User-Agent': 'MediaGallery/1.0'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Geocoding request failed');
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const result = data[0];
+        const countryCode = result.address?.country_code?.toUpperCase();
+        
+        if (countryCode && countryCode.length === 2) {
+          return countryCode;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return null;
     }
   };
 
@@ -348,7 +416,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                     <PopoverContent className="w-full p-0">
                       <Command>
                         <CommandInput 
-                          placeholder="Search locations..." 
+                          placeholder="Search locations or type city name (e.g., Berlin)..." 
                           value={bulkLocationSearch}
                           onValueChange={setBulkLocationSearch}
                         />
@@ -381,7 +449,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 className="text-primary"
                               >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Create "{bulkLocationSearch.trim()}"
+                                Create "{bulkLocationSearch.trim()}" (auto-detect country)
                               </CommandItem>
                             )}
                           </CommandGroup>
@@ -585,7 +653,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 <PopoverContent className="w-full p-0">
                                   <Command>
                                     <CommandInput 
-                                      placeholder="Search locations..." 
+                                      placeholder="Search locations or type city name (e.g., Berlin)..." 
                                       value={fileLocationSearch[index] || ""}
                                       onValueChange={(value) => setFileLocationSearch(prev => ({ ...prev, [index]: value }))}
                                     />
@@ -618,7 +686,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                             className="text-primary"
                                           >
                                             <Plus className="mr-2 h-4 w-4" />
-                                            Create "{(fileLocationSearch[index] || "").trim()}"
+                                            Create "{(fileLocationSearch[index] || "").trim()}" (auto-detect country)
                                           </CommandItem>
                                         )}
                                       </CommandGroup>
