@@ -56,6 +56,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
   const [bulkPhotographerSearch, setBulkPhotographerSearch] = useState("");
   const [fileLocationSearch, setFileLocationSearch] = useState<{ [key: number]: string }>({});
   const [filePhotographerSearch, setFilePhotographerSearch] = useState<{ [key: number]: string }>({});
+  const [uploadProgress, setUploadProgress] = useState<{ [index: number]: { loaded: number; total: number } }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing media data for autocomplete
@@ -248,6 +249,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     }
 
     setIsUploading(true);
+    setUploadProgress({});
 
     try {
       // Extract dimensions for all files before upload
@@ -263,24 +265,56 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
         })
       );
 
-      // Upload files to server
-      const fileList = filesWithDimensions.map(fileData => fileData.file);
-      // Prepare metadata array for all files, now including dimensions
-      const metadataArray = filesWithDimensions.map(fileData => {
-        const tagsValue = typeof fileData.tags === 'string' ? fileData.tags : '';
-        return {
+      // Upload files one by one with progress
+      for (let i = 0; i < filesWithDimensions.length; i++) {
+        const fileData = filesWithDimensions[i];
+        const formData = new FormData();
+        formData.append('files', fileData.file);
+        formData.append('password', password);
+        formData.append('metadata', JSON.stringify({
           name: fileData.customName || fileData.name,
           date: fileData.date,
           location: fileData.location,
-          tags: tagsValue.split(',').map(tag => tag.trim()).filter(Boolean),
+          tags: typeof fileData.tags === 'string' ? fileData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
           photographer: fileData.photographer || '',
           dimensions: fileData.dimensions,
-        };
-      });
-      const uploadResponse = await uploadFiles(fileList, password, metadataArray);
+        }));
+
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/upload', true);
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              setUploadProgress(prev => ({
+                ...prev,
+                [i]: { loaded: event.loaded, total: event.total }
+              }));
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              setUploadProgress(prev => ({
+                ...prev,
+                [i]: { loaded: fileData.file.size, total: fileData.file.size }
+              }));
+              resolve();
+            } else {
+              reject(new Error(xhr.statusText));
+            }
+          };
+
+          xhr.onerror = () => {
+            reject(new Error('Upload failed'));
+          };
+
+          xhr.send(formData);
+        });
+      }
 
       onUpload();
-      toast.success(uploadResponse.message);
+      toast.success(`Successfully uploaded ${files.length} file${files.length !== 1 ? 's' : ''}`);
       handleClose();
     } catch (error) {
       let errorMsg = "Failed to upload files";
@@ -592,7 +626,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                         {fileData.file.type.startsWith('video/') ? (
                           <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
                             <Video className="w-8 h-8 text-muted-foreground" />
-                            <Badge className="absolute -top-1 -right-1 bg-gallery-accent text-xs">
+                            <Badge className="absolute bottom-1 left-1 bg-gallery-accent text-xs z-10">
                               Video
                             </Badge>
                           </div>
@@ -606,7 +640,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                         <Button
                           variant="destructive"
                           size="icon"
-                          className="absolute -top-1 -right-1 w-6 h-6"
+                          className="absolute top-1 right-1 w-6 h-6 z-20"
                           onClick={() => removeFile(index)}
                         >
                           <X className="w-3 h-3" />
@@ -803,6 +837,25 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                           </div>
                         )}
                       </div>
+
+                      {isUploading && uploadProgress[index] && (
+                        <div className="col-span-full flex flex-col gap-1 mt-2">
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>
+                              {((uploadProgress[index].loaded / 1024 / 1024).toFixed(2))} MB / {((uploadProgress[index].total / 1024 / 1024).toFixed(2))} MB
+                            </span>
+                            <span>
+                              {((uploadProgress[index].total - uploadProgress[index].loaded) / 1024 / 1024).toFixed(2)} MB left
+                            </span>
+                          </div>
+                          <div className="w-full bg-border rounded h-2 overflow-hidden">
+                            <div
+                              className="bg-gallery-accent h-2 transition-all"
+                              style={{ width: `${Math.min(100, (uploadProgress[index].loaded / uploadProgress[index].total) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </Card>
                 ))}
