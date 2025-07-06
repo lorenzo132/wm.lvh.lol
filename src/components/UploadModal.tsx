@@ -626,7 +626,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                         {fileData.file.type.startsWith('video/') ? (
                           <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center">
                             <Video className="w-8 h-8 text-muted-foreground" />
-                            <Badge className="absolute bottom-1 left-1 bg-gallery-accent text-xs z-10">
+                            <Badge className="absolute top-1 left-1 bg-gallery-accent text-xs z-10">
                               Video
                             </Badge>
                           </div>
