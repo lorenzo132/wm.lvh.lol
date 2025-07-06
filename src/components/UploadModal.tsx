@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Upload, X, Calendar, MapPin, Tag, Image, Video, ChevronDown, Check } from "lucide-react";
+import { Upload, X, Calendar, MapPin, Tag, Image, Video, ChevronDown, Check, Plus } from "lucide-react";
 import { MediaItem } from "@/types/media";
 import { uploadFiles } from "@/utils/api";
 import { loadMediaFromServer } from "@/utils/storage";
@@ -52,6 +52,10 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
   const [bulkPhotographerOpen, setBulkPhotographerOpen] = useState(false);
   const [fileLocationOpen, setFileLocationOpen] = useState<{ [key: number]: boolean }>({});
   const [filePhotographerOpen, setFilePhotographerOpen] = useState<{ [key: number]: boolean }>({});
+  const [bulkLocationSearch, setBulkLocationSearch] = useState("");
+  const [bulkPhotographerSearch, setBulkPhotographerSearch] = useState("");
+  const [fileLocationSearch, setFileLocationSearch] = useState<{ [key: number]: string }>({});
+  const [filePhotographerSearch, setFilePhotographerSearch] = useState<{ [key: number]: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing media data for autocomplete
@@ -118,6 +122,50 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
   const handleBulkMetadataChange = (field: keyof typeof bulkMetadata, value: string) => {
     setBulkMetadata(prev => ({ ...prev, [field]: value }));
     setFiles(prevFiles => prevFiles.map(file => ({ ...file, [field]: value })));
+  };
+
+  const createNewLocation = (location: string, isBulk: boolean = false, fileIndex?: number) => {
+    if (!location.trim()) return;
+    
+    const trimmedLocation = location.trim();
+    
+    // Add to existing locations if not already present
+    if (!existingLocations.includes(trimmedLocation)) {
+      setExistingLocations(prev => [...prev, trimmedLocation]);
+    }
+    
+    // Update the appropriate metadata
+    if (isBulk) {
+      handleBulkMetadataChange('location', trimmedLocation);
+      setBulkLocationSearch("");
+      setBulkLocationOpen(false);
+    } else if (fileIndex !== undefined) {
+      updateFileMetadata(fileIndex, 'location', trimmedLocation);
+      setFileLocationSearch(prev => ({ ...prev, [fileIndex]: "" }));
+      setFileLocationOpen(prev => ({ ...prev, [fileIndex]: false }));
+    }
+  };
+
+  const createNewPhotographer = (photographer: string, isBulk: boolean = false, fileIndex?: number) => {
+    if (!photographer.trim()) return;
+    
+    const trimmedPhotographer = photographer.trim();
+    
+    // Add to existing photographers if not already present
+    if (!existingPhotographers.includes(trimmedPhotographer)) {
+      setExistingPhotographers(prev => [...prev, trimmedPhotographer]);
+    }
+    
+    // Update the appropriate metadata
+    if (isBulk) {
+      handleBulkMetadataChange('photographer', trimmedPhotographer);
+      setBulkPhotographerSearch("");
+      setBulkPhotographerOpen(false);
+    } else if (fileIndex !== undefined) {
+      updateFileMetadata(fileIndex, 'photographer', trimmedPhotographer);
+      setFilePhotographerSearch(prev => ({ ...prev, [fileIndex]: "" }));
+      setFilePhotographerOpen(prev => ({ ...prev, [fileIndex]: false }));
+    }
   };
 
   const handleUpload = async () => {
@@ -216,6 +264,10 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
       tags: "",
       photographer: ""
     });
+    setBulkLocationSearch("");
+    setBulkPhotographerSearch("");
+    setFileLocationSearch({});
+    setFilePhotographerSearch({});
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -295,7 +347,11 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0">
                       <Command>
-                        <CommandInput placeholder="Search locations..." />
+                        <CommandInput 
+                          placeholder="Search locations..." 
+                          value={bulkLocationSearch}
+                          onValueChange={setBulkLocationSearch}
+                        />
                         <CommandList>
                           <CommandEmpty>No location found.</CommandEmpty>
                           <CommandGroup>
@@ -306,6 +362,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 onSelect={(currentValue) => {
                                   handleBulkMetadataChange('location', currentValue);
                                   setBulkLocationOpen(false);
+                                  setBulkLocationSearch("");
                                 }}
                               >
                                 <Check
@@ -317,6 +374,16 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 {location}
                               </CommandItem>
                             ))}
+                            {bulkLocationSearch.trim() && !existingLocations.includes(bulkLocationSearch.trim()) && (
+                              <CommandItem
+                                value={`create-${bulkLocationSearch}`}
+                                onSelect={() => createNewLocation(bulkLocationSearch, true)}
+                                className="text-primary"
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Create "{bulkLocationSearch.trim()}"
+                              </CommandItem>
+                            )}
                           </CommandGroup>
                         </CommandList>
                       </Command>
@@ -368,7 +435,11 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0">
                       <Command>
-                        <CommandInput placeholder="Search photographers..." />
+                        <CommandInput 
+                          placeholder="Search photographers..." 
+                          value={bulkPhotographerSearch}
+                          onValueChange={setBulkPhotographerSearch}
+                        />
                         <CommandList>
                           <CommandEmpty>No photographer found.</CommandEmpty>
                           <CommandGroup>
@@ -379,6 +450,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 onSelect={(currentValue) => {
                                   handleBulkMetadataChange('photographer', currentValue);
                                   setBulkPhotographerOpen(false);
+                                  setBulkPhotographerSearch("");
                                 }}
                               >
                                 <Check
@@ -390,6 +462,16 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 {photographer}
                               </CommandItem>
                             ))}
+                            {bulkPhotographerSearch.trim() && !existingPhotographers.includes(bulkPhotographerSearch.trim()) && (
+                              <CommandItem
+                                value={`create-${bulkPhotographerSearch}`}
+                                onSelect={() => createNewPhotographer(bulkPhotographerSearch, true)}
+                                className="text-primary"
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Create "{bulkPhotographerSearch.trim()}"
+                              </CommandItem>
+                            )}
                           </CommandGroup>
                         </CommandList>
                       </Command>
@@ -502,7 +584,11 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-full p-0">
                                   <Command>
-                                    <CommandInput placeholder="Search locations..." />
+                                    <CommandInput 
+                                      placeholder="Search locations..." 
+                                      value={fileLocationSearch[index] || ""}
+                                      onValueChange={(value) => setFileLocationSearch(prev => ({ ...prev, [index]: value }))}
+                                    />
                                     <CommandList>
                                       <CommandEmpty>No location found.</CommandEmpty>
                                       <CommandGroup>
@@ -513,6 +599,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                             onSelect={(currentValue) => {
                                               updateFileMetadata(index, 'location', currentValue);
                                               setFileLocationOpen(prev => ({ ...prev, [index]: false }));
+                                              setFileLocationSearch(prev => ({ ...prev, [index]: "" }));
                                             }}
                                           >
                                             <Check
@@ -524,6 +611,16 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                             {location}
                                           </CommandItem>
                                         ))}
+                                        {(fileLocationSearch[index] || "").trim() && !existingLocations.includes((fileLocationSearch[index] || "").trim()) && (
+                                          <CommandItem
+                                            value={`create-${fileLocationSearch[index]}`}
+                                            onSelect={() => createNewLocation(fileLocationSearch[index] || "", false, index)}
+                                            className="text-primary"
+                                          >
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Create "{(fileLocationSearch[index] || "").trim()}"
+                                          </CommandItem>
+                                        )}
                                       </CommandGroup>
                                     </CommandList>
                                   </Command>
@@ -584,7 +681,11 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-full p-0">
                                   <Command>
-                                    <CommandInput placeholder="Search photographers..." />
+                                    <CommandInput 
+                                      placeholder="Search photographers..." 
+                                      value={filePhotographerSearch[index] || ""}
+                                      onValueChange={(value) => setFilePhotographerSearch(prev => ({ ...prev, [index]: value }))}
+                                    />
                                     <CommandList>
                                       <CommandEmpty>No photographer found.</CommandEmpty>
                                       <CommandGroup>
@@ -595,6 +696,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                             onSelect={(currentValue) => {
                                               updateFileMetadata(index, 'photographer', currentValue);
                                               setFilePhotographerOpen(prev => ({ ...prev, [index]: false }));
+                                              setFilePhotographerSearch(prev => ({ ...prev, [index]: "" }));
                                             }}
                                           >
                                             <Check
@@ -606,6 +708,16 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                             {photographer}
                                           </CommandItem>
                                         ))}
+                                        {(filePhotographerSearch[index] || "").trim() && !existingPhotographers.includes((filePhotographerSearch[index] || "").trim()) && (
+                                          <CommandItem
+                                            value={`create-${filePhotographerSearch[index]}`}
+                                            onSelect={() => createNewPhotographer(filePhotographerSearch[index] || "", false, index)}
+                                            className="text-primary"
+                                          >
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Create "{(filePhotographerSearch[index] || "").trim()}"
+                                          </CommandItem>
+                                        )}
                                       </CommandGroup>
                                     </CommandList>
                                   </Command>
