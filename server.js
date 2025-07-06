@@ -191,6 +191,32 @@ function generateVideoThumbnail(videoPath, thumbnailPath) {
   });
 }
 
+// Helper to get video dimensions using ffprobe
+function getVideoDimensions(videoPath) {
+  return new Promise((resolve, reject) => {
+    execFile('ffprobe', [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height',
+      '-of', 'json',
+      videoPath
+    ], (err, stdout) => {
+      if (err) return reject(err);
+      try {
+        const data = JSON.parse(stdout);
+        const stream = data.streams && data.streams[0];
+        if (stream && stream.width && stream.height) {
+          resolve({ width: stream.width, height: stream.height });
+        } else {
+          resolve(undefined);
+        }
+      } catch (e) {
+        resolve(undefined);
+      }
+    });
+  });
+}
+
 // Upload endpoint with password validation
 app.post('/api/upload', upload.array('files'), async (req, res) => {
   console.log('Upload request received');
@@ -242,6 +268,7 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
       console.log(`Saving file ${file.filename} with metadata:`, fileMeta);
 
       let thumbnail = undefined;
+      let dimensions = fileMeta.dimensions || undefined;
       if (file.mimetype.startsWith('video/')) {
         // Generate thumbnail for video
         const thumbFilename = `${path.parse(file.filename).name}.jpg`;
@@ -251,6 +278,12 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
           thumbnail = `/uploads/thumbnails/${thumbFilename}`;
         } catch (err) {
           console.error('Failed to generate video thumbnail:', err);
+        }
+        // Extract video dimensions
+        try {
+          dimensions = await getVideoDimensions(path.join(uploadsDir, file.filename));
+        } catch (err) {
+          console.error('Failed to get video dimensions:', err);
         }
       }
 
@@ -268,7 +301,7 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
         location: fileMeta.location || '',
         tags: fileMeta.tags || [],
         photographer: fileMeta.photographer || '',
-        dimensions: fileMeta.dimensions || undefined
+        dimensions: dimensions
       });
       await mediaDoc.save();
       return mediaDoc;
