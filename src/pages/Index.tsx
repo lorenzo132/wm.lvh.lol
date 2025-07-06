@@ -4,6 +4,8 @@ import GalleryHeader from "@/components/GalleryHeader";
 import MediaCard from "@/components/MediaCard";
 import MediaModal from "@/components/MediaModal";
 import UploadModal from "@/components/UploadModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 import { Button } from "@/components/ui/button";
 import { sampleMedia } from "@/data/sampleMedia";
@@ -19,6 +21,10 @@ const Index = () => {
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [editMedia, setEditMedia] = useState<MediaItem | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', location: '', tags: '', photographer: '', password: '' });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
 
@@ -213,6 +219,32 @@ const Index = () => {
     setSelectedMedia(null);
   };
 
+  const handleEditMedia = (media: MediaItem) => {
+    setEditMedia(media);
+    setEditForm({
+      name: media.name || '',
+      location: media.location || '',
+      tags: (media.tags || []).join(', '),
+      photographer: media.photographer || '',
+      password: ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditFormChange = (field: string, value: string) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditSave = async () => {
+    setIsSavingEdit(true);
+    // TODO: Call backend to save changes
+    setTimeout(() => {
+      setIsSavingEdit(false);
+      setIsEditModalOpen(false);
+      toast.success('Media updated (mock)!');
+    }, 1000);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -254,36 +286,29 @@ const Index = () => {
             </div>
           ) : (
             <div className="space-y-8">
-              {Object.entries(groupedMedia).map(([groupKey, mediaItems], groupIndex) => {
-                const [date, location] = groupKey.split(' - ');
-                return (
-                  <div key={groupKey}>
-                    {/* Group Header */}
-                    <div className="mb-4">
-                      <h2 className="text-xl font-semibold text-foreground">{date}</h2>
-                      <h3 className="text-lg font-medium text-muted-foreground">{location}</h3>
-                    </div>
-                    
-                    {/* Media Grid for this group */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                      {mediaItems.map((media) => (
-                        <MediaCard
-                          key={media.id}
-                          media={media}
-                          onView={handleViewMedia}
-                          onDownload={handleDownloadMedia}
-                          onDelete={handleDeleteMedia}
-                        />
-                      ))}
-                    </div>
-                    
-                    {/* Thin white separator between groups */}
-                    {groupIndex < Object.keys(groupedMedia).length - 1 && (
-                      <div className="mt-8 pt-8 border-t border-white/10" />
-                    )}
+              {Object.entries(groupedMedia).map(([groupKey, groupMedia]) => (
+                <div key={groupKey} className="mb-10">
+                  {/* Group Header */}
+                  <div className="mb-4">
+                    <h2 className="text-xl font-semibold text-foreground">{groupKey.split(' - ')[0]}</h2>
+                    <h3 className="text-lg font-medium text-muted-foreground">{groupKey.split(' - ')[1]}</h3>
                   </div>
-                );
-              })}
+                  
+                  {/* Media Grid for this group */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {groupMedia.map((media) => (
+                      <MediaCard
+                        key={media.id}
+                        media={media}
+                        onView={handleViewMedia}
+                        onDownload={handleDownloadMedia}
+                        onDelete={handleDeleteMedia}
+                        onEdit={handleEditMedia}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -303,6 +328,53 @@ const Index = () => {
           onUpload={handleUploadComplete}
         />
 
+        {/* Edit Modal */}
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Media</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input
+                label="Name"
+                value={editForm.name}
+                onChange={e => handleEditFormChange('name', e.target.value)}
+                placeholder="Name"
+              />
+              <Input
+                label="Location"
+                value={editForm.location}
+                onChange={e => handleEditFormChange('location', e.target.value)}
+                placeholder="Location"
+              />
+              <Input
+                label="Tags"
+                value={editForm.tags}
+                onChange={e => handleEditFormChange('tags', e.target.value)}
+                placeholder="Tags (comma separated)"
+              />
+              <Input
+                label="Photographer"
+                value={editForm.photographer}
+                onChange={e => handleEditFormChange('photographer', e.target.value)}
+                placeholder="Photographer"
+              />
+              <Input
+                label="Password"
+                type="password"
+                value={editForm.password}
+                onChange={e => handleEditFormChange('password', e.target.value)}
+                placeholder="Upload password"
+              />
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={isSavingEdit}>Cancel</Button>
+                <Button onClick={handleEditSave} disabled={isSavingEdit} className="bg-gradient-primary">
+                  {isSavingEdit ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </div>
     </div>
