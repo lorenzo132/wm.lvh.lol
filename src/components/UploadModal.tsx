@@ -82,14 +82,12 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     const selectedFiles = Array.from(event.target.files || []);
     
     selectedFiles.forEach((file) => {
-      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+      if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
           const preview = e.target?.result as string;
-          
           // Extract date from file metadata or use current date
           const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
-          
           const fileWithMetadata: FileWithMetadata = {
             file,
             preview,
@@ -100,10 +98,69 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
             tags: bulkMode ? bulkMetadata.tags : "",
             photographer: bulkMode ? bulkMetadata.photographer : ""
           };
-          
           setFiles(prev => [...prev, fileWithMetadata]);
         };
         reader.readAsDataURL(file);
+      } else if (file.type.startsWith('video/')) {
+        // Generate a thumbnail from the video
+        const videoUrl = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.src = videoUrl;
+        video.crossOrigin = 'anonymous';
+        video.preload = 'metadata';
+        video.muted = true;
+        video.playsInline = true;
+        video.currentTime = 1; // Try to get a frame at 1 second
+        video.onloadeddata = () => {
+          // Seek to 10% of duration if possible
+          if (video.duration && video.duration > 2) {
+            video.currentTime = Math.max(1, video.duration * 0.1);
+          }
+        };
+        video.onseeked = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const preview = canvas.toDataURL('image/png');
+            // Extract date from file metadata or use current date
+            const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
+            const fileWithMetadata: FileWithMetadata = {
+              file,
+              preview,
+              name: file.name,
+              customName: file.name.replace(/\.[^/.]+$/, ""),
+              location: bulkMode ? bulkMetadata.location : "",
+              date: bulkMode ? bulkMetadata.date : fileDate.toISOString().slice(0, 16),
+              tags: bulkMode ? bulkMetadata.tags : "",
+              photographer: bulkMode ? bulkMetadata.photographer : ""
+            };
+            setFiles(prev => [...prev, fileWithMetadata]);
+          }
+          URL.revokeObjectURL(videoUrl);
+        };
+        // Fallback: if seeking fails, use the first frame
+        video.onerror = () => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const preview = e.target?.result as string;
+            const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
+            const fileWithMetadata: FileWithMetadata = {
+              file,
+              preview,
+              name: file.name,
+              customName: file.name.replace(/\.[^/.]+$/, ""),
+              location: bulkMode ? bulkMetadata.location : "",
+              date: bulkMode ? bulkMetadata.date : fileDate.toISOString().slice(0, 16),
+              tags: bulkMode ? bulkMetadata.tags : "",
+              photographer: bulkMode ? bulkMetadata.photographer : ""
+            };
+            setFiles(prev => [...prev, fileWithMetadata]);
+          };
+          reader.readAsDataURL(file);
+        };
       } else {
         toast.error(`Unsupported file type: ${file.name}`);
       }
