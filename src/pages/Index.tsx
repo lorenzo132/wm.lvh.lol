@@ -6,7 +6,9 @@ import MediaModal from "@/components/MediaModal";
 import UploadModal from "@/components/UploadModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sampleMedia } from "@/data/sampleMedia";
 import { MediaItem, SortBy, SortOrder } from "@/types/media";
@@ -27,6 +29,11 @@ const Index = () => {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+
+  const locations = useMemo(() => [...new Set(mediaItems.map(item => item.location).filter(Boolean))], [mediaItems]);
+  const photographers = useMemo(() => [...new Set(mediaItems.map(item => item.photographer).filter(Boolean))], [mediaItems]);
+  const [editLocationOpen, setEditLocationOpen] = useState(false);
+  const [editPhotographerOpen, setEditPhotographerOpen] = useState(false);
 
   // Load media from server and localStorage on component mount
   useEffect(() => {
@@ -341,24 +348,101 @@ const Index = () => {
                 onChange={e => handleEditFormChange('name', e.target.value)}
                 placeholder="Name"
               />
-              <Input
-                label="Location"
-                value={editForm.location}
-                onChange={e => handleEditFormChange('location', e.target.value)}
-                placeholder="Location"
-              />
+              {/* Location Autocomplete */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Location</label>
+                <Popover open={editLocationOpen} onOpenChange={setEditLocationOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={editLocationOpen}
+                      className="w-full justify-between bg-background/50"
+                    >
+                      {editForm.location || "Select location..."}
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search locations..."
+                        value={editForm.location}
+                        onValueChange={v => handleEditFormChange('location', v)}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No location found.</CommandEmpty>
+                        <CommandGroup>
+                          {locations.map((location) => (
+                            <CommandItem
+                              key={location}
+                              value={location}
+                              onSelect={(currentValue) => {
+                                handleEditFormChange('location', currentValue);
+                                setEditLocationOpen(false);
+                              }}
+                            >
+                              <Check className={"mr-2 h-4 w-4 " + (editForm.location === location ? "opacity-100" : "opacity-0")}/>
+                              {location}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {/* Tags input remains free text for now */}
               <Input
                 label="Tags"
                 value={editForm.tags}
                 onChange={e => handleEditFormChange('tags', e.target.value)}
                 placeholder="Tags (comma separated)"
               />
-              <Input
-                label="Photographer"
-                value={editForm.photographer}
-                onChange={e => handleEditFormChange('photographer', e.target.value)}
-                placeholder="Photographer"
-              />
+              {/* Photographer Autocomplete */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Photographer</label>
+                <Popover open={editPhotographerOpen} onOpenChange={setEditPhotographerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={editPhotographerOpen}
+                      className="w-full justify-between bg-background/50"
+                    >
+                      {editForm.photographer || "Select photographer..."}
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search photographers..."
+                        value={editForm.photographer}
+                        onValueChange={v => handleEditFormChange('photographer', v)}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No photographer found.</CommandEmpty>
+                        <CommandGroup>
+                          {photographers.map((photographer) => (
+                            <CommandItem
+                              key={photographer}
+                              value={photographer}
+                              onSelect={(currentValue) => {
+                                handleEditFormChange('photographer', currentValue);
+                                setEditPhotographerOpen(false);
+                              }}
+                            >
+                              <Check className={"mr-2 h-4 w-4 " + (editForm.photographer === photographer ? "opacity-100" : "opacity-0")}/>
+                              {photographer}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
               <Input
                 label="Password"
                 type="password"
