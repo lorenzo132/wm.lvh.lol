@@ -900,8 +900,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>
                               {((uploadProgress[index].loaded / 1024 / 1024).toFixed(2))} MB / {((uploadProgress[index].total / 1024 / 1024).toFixed(2))} MB
-                            </span>
-                            <span>
+                              <span className="mx-1">&bull;</span>
                               {((uploadProgress[index].total - uploadProgress[index].loaded) / 1024 / 1024).toFixed(2)} MB left
                             </span>
                           </div>
