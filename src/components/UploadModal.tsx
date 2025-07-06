@@ -684,7 +684,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
               <h3 className="font-semibold">Selected Files ({files.length})</h3>
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {files.map((fileData, index) => (
-                  <Card key={index} className="p-4 bg-gradient-card border-border">
+                  <Card key={fileData.file.name + '-' + fileData.file.size} className="p-4 bg-gradient-card border-border">
                     <div className="flex gap-4">
                       {/* Preview */}
                       <div className="relative w-20 h-20 flex-shrink-0">
