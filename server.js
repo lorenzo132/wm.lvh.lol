@@ -8,6 +8,7 @@ import { dirname } from 'path';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
+import { execFile } from 'child_process';
 
 // Load environment variables
 dotenv.config();
@@ -42,6 +43,12 @@ app.use((req, res, next) => {
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Create thumbnails directory if it doesn't exist
+const thumbnailsDir = path.join(uploadsDir, 'thumbnails');
+if (!fs.existsSync(thumbnailsDir)) {
+  fs.mkdirSync(thumbnailsDir, { recursive: true });
 }
 
 // Configure multer for file uploads
@@ -166,9 +173,23 @@ const mediaSchema = new mongoose.Schema({
   dimensions: {
     width: Number,
     height: Number
-  }
+  },
+  thumbnail: String
 });
 const Media = mongoose.model('Media', mediaSchema);
+
+// Helper to generate a thumbnail for a video file using ffmpeg
+function generateVideoThumbnail(videoPath, thumbnailPath) {
+  return new Promise((resolve, reject) => {
+    // -ss 00:00:02 seeks to 2 seconds, -vframes 1 takes one frame
+    execFile('ffmpeg', ['-y', '-ss', '00:00:02', '-i', videoPath, '-vframes', '1', '-vf', 'scale=400:-1', thumbnailPath], (err) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve();
+    });
+  });
+}
 
 // Upload endpoint with password validation
 app.post('/api/upload', upload.array('files'), async (req, res) => {
@@ -219,10 +240,25 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
       // Fallback: use empty object
       if (Array.isArray(metadata)) fileMeta = metadata[idx] || {};
       console.log(`Saving file ${file.filename} with metadata:`, fileMeta);
+
+      let thumbnail = undefined;
+      if (file.mimetype.startsWith('video/')) {
+        // Generate thumbnail for video
+        const thumbFilename = `${path.parse(file.filename).name}.jpg`;
+        const thumbPath = path.join(thumbnailsDir, thumbFilename);
+        try {
+          await generateVideoThumbnail(path.join(uploadsDir, file.filename), thumbPath);
+          thumbnail = `/uploads/thumbnails/${thumbFilename}`;
+        } catch (err) {
+          console.error('Failed to generate video thumbnail:', err);
+        }
+      }
+
       const mediaDoc = new Media({
         originalName: file.originalname,
         filename: file.filename,
         url: `/uploads/${file.filename}`,
+        thumbnail: thumbnail,
         size: file.size,
         mimetype: file.mimetype,
         uploadedAt: uploadTime,
@@ -259,7 +295,7 @@ app.get('/api/files', async (req, res) => {
       id: doc._id.toString(),
       name: doc.name,
       url: doc.url,
-      thumbnail: doc.thumbnail, // if you ever add this
+      thumbnail: doc.thumbnail,
       type: doc.type,
       date: doc.date,
       location: doc.location,
