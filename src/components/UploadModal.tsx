@@ -82,6 +82,10 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     const selectedFiles = Array.from(event.target.files || []);
     
     selectedFiles.forEach((file) => {
+      // Prevent duplicates: check if file with same name and size already exists
+      if (files.some(f => f.file.name === file.name && f.file.size === file.size)) {
+        return;
+      }
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -165,6 +169,10 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
         toast.error(`Unsupported file type: ${file.name}`);
       }
     });
+    // Clear the file input after processing
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const removeFile = (index: number) => {
