@@ -394,6 +394,49 @@ app.delete('/api/files/:filename', async (req, res) => {
   }
 });
 
+// Update file endpoint with password validation
+app.put('/api/files/:filename', async (req, res) => {
+  try {
+    const providedPassword = req.body.password;
+    const expectedPassword = process.env.UPLOAD_PASSWORD;
+
+    if (!providedPassword) {
+      return res.status(401).json({ error: 'Upload password is required for editing' });
+    }
+    if (!expectedPassword) {
+      return res.status(500).json({ error: 'Upload password not configured on server' });
+    }
+    if (providedPassword !== expectedPassword) {
+      return res.status(401).json({ error: 'Invalid upload password' });
+    }
+
+    const filename = req.params.filename;
+    const allowedFields = ['name', 'location', 'tags', 'photographer', 'date'];
+    const updates = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    }
+    if (updates.tags && Array.isArray(updates.tags)) {
+      // Ensure tags are strings
+      updates.tags = updates.tags.map(t => String(t));
+    }
+    const updated = await Media.findOneAndUpdate(
+      { filename },
+      { $set: updates },
+      { new: true }
+    );
+    if (!updated) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    res.json({ success: true, message: 'File updated successfully' });
+  } catch (error) {
+    console.error('Edit error:', error);
+    res.status(500).json({ error: 'Failed to update file' });
+  }
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
