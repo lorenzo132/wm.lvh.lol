@@ -1,5 +1,5 @@
 import { MediaItem } from "@/types/media";
-import { getFiles, deleteFile, getFileUrl } from "./api";
+import { getFiles, deleteFile, getFileUrl, updateFile } from "./api";
 
 // Only fetch media from the backend
 export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
@@ -47,6 +47,23 @@ export const deleteMediaFromServer = async (media: MediaItem, password: string):
     return result.success;
   } catch (error) {
     console.error("Failed to delete media from server:", error);
+    return false;
+  }
+};
+
+// Update media on server
+export const updateMediaOnServer = async (
+  media: MediaItem,
+  updates: Partial<MediaItem>,
+  password: string
+): Promise<boolean> => {
+  try {
+    const filename = media.filename;
+    if (!filename) throw new Error('Invalid file: missing filename property');
+    const result = await updateFile(filename, updates, password);
+    return result.success;
+  } catch (error) {
+    console.error("Failed to update media on server:", error);
     return false;
   }
 };

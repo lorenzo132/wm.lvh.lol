@@ -12,7 +12,7 @@ import { ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sampleMedia } from "@/data/sampleMedia";
 import { MediaItem, SortBy, SortOrder } from "@/types/media";
-import { loadMediaFromServer, deleteMediaFromServer } from "@/utils/storage";
+import { loadMediaFromServer, deleteMediaFromServer, updateMediaOnServer } from "@/utils/storage";
 import { hasUploadPassword } from "@/utils/passwordManager";
 
 const Index = () => {
@@ -244,13 +244,34 @@ const Index = () => {
   };
 
   const handleEditSave = async () => {
+    if (!editForm.password) {
+      toast.error('Password is required to save changes.');
+      return;
+    }
     setIsSavingEdit(true);
-    // TODO: Call backend to save changes
-    setTimeout(() => {
+    const updates = {
+      name: editForm.name,
+      location: editForm.location,
+      tags: editForm.tags.split(',').map(t => t.trim()).filter(Boolean),
+      photographer: editForm.photographer,
+      date: editForm.date,
+    };
+    try {
+      const success = await updateMediaOnServer(editMedia, updates, editForm.password);
+      if (success) {
+        // Optionally reload media from server
+        const serverMedia = await loadMediaFromServer();
+        setMediaItems(serverMedia);
+        setIsEditModalOpen(false);
+        toast.success('Media updated!');
+      } else {
+        toast.error('Failed to update media.');
+      }
+    } catch (error) {
+      toast.error('Failed to update media.');
+    } finally {
       setIsSavingEdit(false);
-      setIsEditModalOpen(false);
-      toast.success('Media updated (mock)!');
-    }, 1000);
+    }
   };
 
   return (
@@ -343,6 +364,24 @@ const Index = () => {
               <DialogTitle>Edit Media</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
+              {/* Media Preview */}
+              {editMedia && (
+                <div className="flex justify-center mb-2">
+                  {editMedia.type === 'image' ? (
+                    <img
+                      src={editMedia.url}
+                      alt={editMedia.name}
+                      className="max-h-48 rounded shadow"
+                    />
+                  ) : editMedia.type === 'video' ? (
+                    <video
+                      src={editMedia.url}
+                      controls
+                      className="max-h-48 rounded shadow"
+                    />
+                  ) : null}
+                </div>
+              )}
               <Input
                 label="Name"
                 value={editForm.name}

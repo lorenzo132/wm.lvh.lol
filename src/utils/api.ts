@@ -109,4 +109,26 @@ export const deleteFile = async (filename: string, password: string): Promise<{ 
 
 export const getFileUrl = (filename: string): string => {
   return `${API_BASE_URL}/uploads/${encodeURIComponent(filename)}`;
+};
+
+export const updateFile = async (
+  filename: string,
+  updates: Partial<FileInfo>,
+  password: string
+): Promise<{ success: boolean; message: string }> => {
+  const updateUrl = `${API_BASE_URL}/api/files/${encodeURIComponent(filename)}`;
+  const response = await fetch(updateUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ...updates, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to update file: ${response.status}`);
+  }
+
+  return response.json();
 }; 
