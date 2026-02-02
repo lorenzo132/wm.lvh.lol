@@ -1,5 +1,5 @@
 import { MediaItem } from "@/types/media";
-import { getFiles, deleteFile, getFileUrl, updateFile } from "./api";
+import { getFiles, deleteFile, updateFile } from "./api";
 
 // Only fetch media from the backend
 export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
@@ -9,7 +9,7 @@ export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
     const mediaItems: MediaItem[] = serverFiles.files.map(fileInfo => ({
       id: fileInfo.id || fileInfo.filename,
       name: fileInfo.name || fileInfo.filename.replace(/\.[^/.]+$/, ""),
-      url: getFileUrl(fileInfo.filename),
+      url: fileInfo.url, // Use the actual URL from database (S3 or local)
       thumbnail: fileInfo.thumbnail,
       type: fileInfo.type === 'video' ? 'video' : 'image',
       date: fileInfo.date || new Date(fileInfo.uploadedAt).toISOString(),
