@@ -117,15 +117,15 @@ const Index = () => {
   // Extract unique values for search autocomplete
   const searchSuggestions = useMemo(() => {
     const suggestions: string[] = [];
-    
+
     // Add unique locations
     const locations = [...new Set(mediaItems.map(item => item.location).filter(Boolean))];
     suggestions.push(...locations);
-    
+
     // Add unique photographers
     const photographers = [...new Set(mediaItems.map(item => item.photographer).filter(Boolean))];
     suggestions.push(...photographers);
-    
+
     // Add unique dates (formatted as readable strings)
     const dates = [...new Set(mediaItems.map(item => {
       if (item.date) {
@@ -138,29 +138,29 @@ const Index = () => {
       return null;
     }).filter(Boolean))];
     suggestions.push(...dates);
-    
+
     // Add unique tag names
     const tags = [...new Set(mediaItems.flatMap(item => item.tags || []))];
     suggestions.push(...tags);
-    
+
     return suggestions;
   }, [mediaItems]);
 
   // Group media items by date and location
   const groupedMedia = useMemo(() => {
     const groups: { [key: string]: MediaItem[] } = {};
-    
+
     filteredAndSortedMedia.forEach((media) => {
       const date = media.date ? new Date(media.date).toDateString() : 'Unknown Date';
       const location = media.location || 'Unknown Location';
       const groupKey = `${date} - ${location}`;
-      
+
       if (!groups[groupKey]) {
         groups[groupKey] = [];
       }
       groups[groupKey].push(media);
     });
-    
+
     return groups;
   }, [filteredAndSortedMedia]);
 
@@ -174,18 +174,36 @@ const Index = () => {
     setIsModalOpen(true);
   };
 
-  const handleDownloadMedia = (media: MediaItem) => {
-    // In a real app, this would trigger an actual download
+  const handleDownloadMedia = async (media: MediaItem) => {
     toast.success(`Downloading ${media.name}...`);
-    
-    // Simulate download
-    const link = document.createElement('a');
-    link.href = media.url;
-    link.download = media.name;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    try {
+      // For cross-origin URLs (like S3), we need to fetch and create a blob
+      const response = await fetch(media.url);
+      const blob = await response.blob();
+
+      // Create a blob URL and trigger download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+
+      // Get file extension from URL or mimetype
+      const urlExt = media.url.split('.').pop()?.split('?')[0] || '';
+      const filename = `${media.name}.${urlExt}`;
+
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback: open in new tab
+      window.open(media.url, '_blank');
+      toast.error('Download failed, opened in new tab instead');
+    }
   };
 
   const handleUpload = () => {
@@ -297,7 +315,7 @@ const Index = () => {
               totalItems={filteredAndSortedMedia.length}
             />
           </div>
-          
+
 
         </div>
 
@@ -322,7 +340,7 @@ const Index = () => {
                     <h2 className="text-xl font-semibold text-foreground">{groupKey.split(' - ')[0]}</h2>
                     <h3 className="text-lg font-medium text-muted-foreground">{groupKey.split(' - ')[1]}</h3>
                   </div>
-                  
+
                   {/* Media Grid for this group */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {groupMedia.map((media) => (
@@ -422,7 +440,7 @@ const Index = () => {
                                 setEditLocationOpen(false);
                               }}
                             >
-                              <Check className={"mr-2 h-4 w-4 " + (editForm.location === location ? "opacity-100" : "opacity-0")}/>
+                              <Check className={"mr-2 h-4 w-4 " + (editForm.location === location ? "opacity-100" : "opacity-0")} />
                               {location}
                             </CommandItem>
                           ))}
@@ -483,7 +501,7 @@ const Index = () => {
                                 setEditPhotographerOpen(false);
                               }}
                             >
-                              <Check className={"mr-2 h-4 w-4 " + (editForm.photographer === photographer ? "opacity-100" : "opacity-0")}/>
+                              <Check className={"mr-2 h-4 w-4 " + (editForm.photographer === photographer ? "opacity-100" : "opacity-0")} />
                               {photographer}
                             </CommandItem>
                           ))}
