@@ -9,6 +9,9 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { execFile } from 'child_process';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import { uploadToS3, deleteFromS3, getS3Url, isS3Configured, getS3Status } from './s3.js';
 
 // Load environment variables
 dotenv.config();
@@ -18,6 +21,28 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Check S3 configuration on startup
+const s3Enabled = isS3Configured();
+console.log(`📦 S3 Storage: ${s3Enabled ? 'ENABLED' : 'DISABLED (using local storage)'}`);
+if (s3Enabled) {
+  console.log(`   Status:`, getS3Status());
+}
+
+// Compression middleware for API responses
+app.use(compression());
+
+// Rate limiting for API endpoints
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
 
 // Enable CORS for frontend (production and local dev) - MUST be first middleware
 app.use(cors({
@@ -39,7 +64,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Create uploads directory if it doesn't exist
+// Create uploads directory if it doesn't exist (for local fallback and thumbnails)
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -51,19 +76,20 @@ if (!fs.existsSync(thumbnailsDir)) {
   fs.mkdirSync(thumbnailsDir, { recursive: true });
 }
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate a UUID for the filename
-    const extension = path.extname(file.originalname);
-    const uuid = crypto.randomUUID();
-    const filename = `${uuid}${extension}`;
-    cb(null, filename);
-  }
-});
+// Configure multer - use memory storage for S3, disk for local fallback
+const storage = s3Enabled
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, uploadsDir);
+    },
+    filename: (req, file, cb) => {
+      const extension = path.extname(file.originalname);
+      const uuid = crypto.randomUUID();
+      const filename = `${uuid}${extension}`;
+      cb(null, filename);
+    }
+  });
 
 const allowedExtensions = [
   // Images
@@ -78,7 +104,7 @@ const allowedMimeTypes = [
   'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/x-flv', 'video/webm', 'video/x-matroska', 'video/x-m4v', 'video/3gpp', 'video/ogg', 'video/ogv', 'video/mpeg', 'video/x-ms-asf', 'video/x-ms-mpeg', 'video/x-ms-vob', 'video/x-ms-dat', 'video/x-ms-divx', 'video/x-ms-rmvb', 'video/x-ms-ts', 'video/x-ms-mts', 'video/x-ms-m2ts', 'video/x-f4v', 'video/x-f4p', 'video/x-f4a', 'video/x-f4b'
 ];
 
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -93,49 +119,42 @@ const upload = multer({
   }
 });
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    storage: s3Enabled ? 's3' : 'local',
+    s3Status: getS3Status(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+  });
+});
+
 // Test endpoint
 app.get('/api/test', (req, res) => {
-  res.json({ 
-    message: 'Server is running!', 
+  res.json({
+    message: 'Server is running!',
     timestamp: new Date().toISOString(),
     uploadPasswordConfigured: !!process.env.UPLOAD_PASSWORD,
-    uploadPasswordLength: process.env.UPLOAD_PASSWORD ? process.env.UPLOAD_PASSWORD.length : 0
+    uploadPasswordLength: process.env.UPLOAD_PASSWORD ? process.env.UPLOAD_PASSWORD.length : 0,
+    storageMode: s3Enabled ? 's3' : 'local',
   });
 });
 
 // Debug endpoint to show file dates
-app.get('/api/debug/files', (req, res) => {
+app.get('/api/debug/files', async (req, res) => {
   try {
-    const files = fs.readdirSync(uploadsDir);
-    const fileList = files.map(filename => {
-      const filePath = path.join(uploadsDir, filename);
-      const stats = fs.statSync(filePath);
-      
-      // Extract timestamp from filename (format: name-timestamp.ext)
-      let uploadedAt = stats.mtime; // fallback to file modification time
-      const timestampMatch = filename.match(/-(\d+)\./);
-      if (timestampMatch) {
-        const timestamp = parseInt(timestampMatch[1]);
-        if (!isNaN(timestamp)) {
-          uploadedAt = new Date(timestamp);
-        }
-      }
-      
-      return {
-        filename,
-        size: stats.size,
-        mtime: stats.mtime,
-        uploadedAt: uploadedAt,
-        extractedTimestamp: timestampMatch ? timestampMatch[1] : null
-      };
+    const files = await Media.find().sort({ uploadedAt: -1 }).limit(50);
+    res.json({
+      files: files.map(doc => ({
+        filename: doc.filename,
+        size: doc.size,
+        uploadedAt: doc.uploadedAt,
+        url: doc.url,
+        storageType: doc.url?.includes('contabostorage') || doc.url?.includes('s3') ? 's3' : 'local'
+      }))
     });
-    
-    // Sort by upload date (newest first)
-    fileList.sort((a, b) => {
-      return new Date(b.uploadedAt) - new Date(a.uploadedAt);
-    });
-    
-    res.json({ files: fileList });
   } catch (error) {
     console.error('Error reading files:', error);
     res.status(500).json({ error: 'Failed to read files' });
@@ -147,8 +166,12 @@ app.get('/debug', (req, res) => {
   res.sendFile(path.join(__dirname, 'debug.html'));
 });
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(uploadsDir));
+// Serve static files from uploads directory (for local storage fallback)
+app.use('/uploads', express.static(uploadsDir, {
+  maxAge: '1y', // Cache for 1 year
+  etag: true,
+  lastModified: true,
+}));
 
 // MongoDB connection
 const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/wmgallery';
@@ -174,8 +197,14 @@ const mediaSchema = new mongoose.Schema({
     width: Number,
     height: Number
   },
-  thumbnail: String
+  thumbnail: String,
+  storageType: { type: String, default: 'local' } // 'local' or 's3'
 });
+
+// Add index for faster queries
+mediaSchema.index({ uploadedAt: -1 });
+mediaSchema.index({ filename: 1 });
+
 const Media = mongoose.model('Media', mediaSchema);
 
 // Helper to generate a thumbnail for a video file using ffmpeg
@@ -217,27 +246,46 @@ function getVideoDimensions(videoPath) {
   });
 }
 
+// Helper to save buffer to temp file for ffmpeg processing
+async function saveTempFile(buffer, filename) {
+  const tempPath = path.join(uploadsDir, `temp_${filename}`);
+  await fs.promises.writeFile(tempPath, buffer);
+  return tempPath;
+}
+
+// Helper to clean up temp file
+async function cleanupTempFile(tempPath) {
+  try {
+    if (fs.existsSync(tempPath)) {
+      await fs.promises.unlink(tempPath);
+    }
+  } catch (error) {
+    console.error('Failed to cleanup temp file:', error);
+  }
+}
+
 // Upload endpoint with password validation
 app.post('/api/upload', upload.array('files'), async (req, res) => {
   console.log('Upload request received');
-  console.log('Files:', req.files);
+  console.log('Files:', req.files?.length || 0);
   console.log('Password provided:', !!req.body.password);
-  
+  console.log('Storage mode:', s3Enabled ? 'S3' : 'Local');
+
   try {
     // Check if password is provided
     const providedPassword = req.body.password;
     const expectedPassword = process.env.UPLOAD_PASSWORD;
-    
+
     if (!providedPassword) {
       console.log('No password provided');
       return res.status(401).json({ error: 'Upload password is required' });
     }
-    
+
     if (!expectedPassword) {
       console.log('No upload password configured on server');
       return res.status(500).json({ error: 'Upload password not configured on server' });
     }
-    
+
     if (providedPassword !== expectedPassword) {
       console.log('Invalid password provided');
       return res.status(401).json({ error: 'Invalid upload password' });
@@ -263,34 +311,83 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
     const uploadedFiles = await Promise.all(req.files.map(async (file, idx) => {
       // Try to get per-file metadata if sent as array
       let fileMeta = metadata[idx] || metadata || {};
-      // Fallback: use empty object
       if (Array.isArray(metadata)) fileMeta = metadata[idx] || {};
-      console.log(`Saving file ${file.filename} with metadata:`, fileMeta);
 
+      // Generate filename
+      const extension = path.extname(file.originalname);
+      const uuid = crypto.randomUUID();
+      const filename = s3Enabled ? `${uuid}${extension}` : file.filename;
+
+      console.log(`Processing file ${filename} with metadata:`, fileMeta);
+
+      let fileUrl;
       let thumbnail = undefined;
       let dimensions = fileMeta.dimensions || undefined;
-      if (file.mimetype.startsWith('video/')) {
-        // Generate thumbnail for video
-        const thumbFilename = `${path.parse(file.filename).name}.jpg`;
-        const thumbPath = path.join(thumbnailsDir, thumbFilename);
-        try {
-          await generateVideoThumbnail(path.join(uploadsDir, file.filename), thumbPath);
-          thumbnail = `/uploads/thumbnails/${thumbFilename}`;
-        } catch (err) {
-          console.error('Failed to generate video thumbnail:', err);
+      let tempVideoPath = null;
+
+      if (s3Enabled) {
+        // Upload to S3
+        const s3Result = await uploadToS3(file.buffer, filename, file.mimetype);
+        fileUrl = s3Result.url;
+
+        // Handle video thumbnails and dimensions
+        if (file.mimetype.startsWith('video/')) {
+          // Save to temp file for ffmpeg processing
+          tempVideoPath = await saveTempFile(file.buffer, filename);
+
+          // Generate thumbnail
+          const thumbFilename = `${path.parse(filename).name}.jpg`;
+          const localThumbPath = path.join(thumbnailsDir, thumbFilename);
+          try {
+            await generateVideoThumbnail(tempVideoPath, localThumbPath);
+
+            // Upload thumbnail to S3
+            const thumbBuffer = await fs.promises.readFile(localThumbPath);
+            const thumbResult = await uploadToS3(thumbBuffer, `thumbnails/${thumbFilename}`, 'image/jpeg');
+            thumbnail = thumbResult.url;
+
+            // Clean up local thumbnail
+            await fs.promises.unlink(localThumbPath);
+          } catch (err) {
+            console.error('Failed to generate video thumbnail:', err);
+          }
+
+          // Extract video dimensions
+          try {
+            dimensions = await getVideoDimensions(tempVideoPath);
+          } catch (err) {
+            console.error('Failed to get video dimensions:', err);
+          }
+
+          // Clean up temp file
+          await cleanupTempFile(tempVideoPath);
         }
-        // Extract video dimensions
-        try {
-          dimensions = await getVideoDimensions(path.join(uploadsDir, file.filename));
-        } catch (err) {
-          console.error('Failed to get video dimensions:', err);
+      } else {
+        // Local storage
+        fileUrl = `/uploads/${filename}`;
+
+        if (file.mimetype.startsWith('video/')) {
+          const thumbFilename = `${path.parse(filename).name}.jpg`;
+          const thumbPath = path.join(thumbnailsDir, thumbFilename);
+          try {
+            await generateVideoThumbnail(path.join(uploadsDir, filename), thumbPath);
+            thumbnail = `/uploads/thumbnails/${thumbFilename}`;
+          } catch (err) {
+            console.error('Failed to generate video thumbnail:', err);
+          }
+
+          try {
+            dimensions = await getVideoDimensions(path.join(uploadsDir, filename));
+          } catch (err) {
+            console.error('Failed to get video dimensions:', err);
+          }
         }
       }
 
       const mediaDoc = new Media({
         originalName: file.originalname,
-        filename: file.filename,
-        url: `/uploads/${file.filename}`,
+        filename: filename,
+        url: fileUrl,
         thumbnail: thumbnail,
         size: file.size,
         mimetype: file.mimetype,
@@ -301,22 +398,24 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
         location: fileMeta.location || '',
         tags: fileMeta.tags || [],
         photographer: fileMeta.photographer || '',
-        dimensions: dimensions
+        dimensions: dimensions,
+        storageType: s3Enabled ? 's3' : 'local'
       });
       await mediaDoc.save();
       return mediaDoc;
     }));
 
-    console.log('Files uploaded and saved to DB:', uploadedFiles);
+    console.log('Files uploaded and saved to DB:', uploadedFiles.length);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       files: uploadedFiles,
-      message: `Successfully uploaded ${uploadedFiles.length} file(s)`
+      message: `Successfully uploaded ${uploadedFiles.length} file(s)`,
+      storageType: s3Enabled ? 's3' : 'local'
     });
   } catch (error) {
     console.error('Upload error:', error);
-    res.status(500).json({ error: 'Upload failed' });
+    res.status(500).json({ error: 'Upload failed: ' + error.message });
   }
 });
 
@@ -352,42 +451,75 @@ app.delete('/api/files/:filename', async (req, res) => {
   try {
     console.log('Delete request received for:', req.params.filename);
     console.log('Request body:', req.body);
+
     // Check if password is provided
     const providedPassword = req.body.password;
     const expectedPassword = process.env.UPLOAD_PASSWORD;
-    
+
     console.log('Provided password:', providedPassword ? '***' : 'none');
     console.log('Expected password:', expectedPassword ? '***' : 'none');
-    
+
     if (!providedPassword) {
       console.log('No password provided for deletion');
       return res.status(401).json({ error: 'Upload password is required for deletion' });
     }
-    
+
     if (!expectedPassword) {
       console.log('No upload password configured on server');
       return res.status(500).json({ error: 'Upload password not configured on server' });
     }
-    
+
     if (providedPassword !== expectedPassword) {
       console.log('Invalid password provided for deletion');
-      console.log('Password comparison failed');
       return res.status(401).json({ error: 'Invalid upload password' });
     }
 
     const filename = req.params.filename;
-    const filePath = path.join(uploadsDir, filename);
+
+    // Find the media document to check storage type
+    const mediaDoc = await Media.findOne({ filename });
+
+    if (!mediaDoc) {
+      return res.status(404).json({ error: 'File not found in database' });
+    }
+
+    // Delete from appropriate storage
+    if (mediaDoc.storageType === 's3' && s3Enabled) {
+      // Delete from S3
+      try {
+        await deleteFromS3(filename);
+
+        // Also delete thumbnail if exists
+        if (mediaDoc.thumbnail && mediaDoc.thumbnail.includes('thumbnails/')) {
+          const thumbKey = `thumbnails/${path.parse(filename).name}.jpg`;
+          try {
+            await deleteFromS3(thumbKey);
+          } catch (err) {
+            console.error('Failed to delete thumbnail from S3:', err);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to delete from S3:', err);
+      }
+    } else {
+      // Delete from local disk
+      const filePath = path.join(uploadsDir, filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+      // Delete thumbnail if exists
+      const thumbPath = path.join(thumbnailsDir, `${path.parse(filename).name}.jpg`);
+      if (fs.existsSync(thumbPath)) {
+        fs.unlinkSync(thumbPath);
+      }
+    }
 
     // Remove from DB
     await Media.deleteOne({ filename });
-    // Remove from disk
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      console.log(`File deleted: ${filename}`);
-      res.json({ success: true, message: 'File deleted successfully' });
-    } else {
-      res.status(404).json({ error: 'File not found' });
-    }
+
+    console.log(`File deleted: ${filename}`);
+    res.json({ success: true, message: 'File deleted successfully' });
   } catch (error) {
     console.error('Delete error:', error);
     res.status(500).json({ error: 'Failed to delete file' });
@@ -462,8 +594,9 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Server accessible at: http://localhost:${PORT}`);
-  console.log(`Uploads directory: ${uploadsDir}`);
-  console.log(`Production build served from: ${path.join(__dirname, 'dist')}`);
-}); 
+  console.log(`\n🚀 Server running on port ${PORT}`);
+  console.log(`   Local: http://localhost:${PORT}`);
+  console.log(`   Uploads: ${uploadsDir}`);
+  console.log(`   Storage: ${s3Enabled ? '☁️  S3 (Contabo)' : '💾 Local Disk'}`);
+  console.log(`   Build: ${path.join(__dirname, 'dist')}\n`);
+});
