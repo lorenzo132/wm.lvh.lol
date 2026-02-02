@@ -15,11 +15,16 @@ dotenv.config();
 
 const S3_TENANT_ID = process.env.S3_TENANT_ID;
 const S3_BUCKET = process.env.S3_BUCKET;
-const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://eu2.contabostorage.com';
+const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://eu2.contabostorage.com').replace(/\/$/, ''); // Remove trailing slash
 
 if (!S3_TENANT_ID) {
     console.error('❌ S3_TENANT_ID is not set in .env file');
     console.error('   Add: S3_TENANT_ID=5f046e2c2dbe48bdb609cc07f804d216');
+    process.exit(1);
+}
+
+if (!S3_BUCKET) {
+    console.error('❌ S3_BUCKET is not set in .env file');
     process.exit(1);
 }
 
@@ -40,23 +45,39 @@ async function fixUrls() {
     await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB\n');
 
-    // Find all S3 files with wrong URL format
-    const endpoint = S3_ENDPOINT.replace('https://', '');
-    const wrongPattern = `https://${endpoint}/${S3_BUCKET}/`;
-    const correctPattern = `https://${endpoint}/${S3_TENANT_ID}:${S3_BUCKET}/`;
+    // Build patterns - ensure no double slashes
+    const endpoint = S3_ENDPOINT.replace('https://', '').replace('http://', '');
+    const wrongUrlStart = `https://${endpoint}/${S3_BUCKET}/`;
+    const correctUrlStart = `https://${endpoint}/${S3_TENANT_ID}:${S3_BUCKET}/`;
 
-    console.log(`Wrong format:   ${wrongPattern}...`);
-    console.log(`Correct format: ${correctPattern}...\n`);
+    console.log(`Looking for:  ${wrongUrlStart}...`);
+    console.log(`Will change to: ${correctUrlStart}...\n`);
 
+    // Find all S3 files that DON'T have the tenant ID in the URL
     const filesToFix = await Media.find({
         storageType: 's3',
-        url: { $regex: `^https://${endpoint}/${S3_BUCKET}/` }
+        url: {
+            $regex: `^https://${endpoint}/${S3_BUCKET}/`,
+            $not: { $regex: `:${S3_BUCKET}/` }  // Exclude already-fixed URLs with tenant:bucket
+        }
     });
 
     console.log(`📂 Found ${filesToFix.length} files to fix\n`);
 
     if (filesToFix.length === 0) {
-        console.log('✅ All URLs are already correct!');
+        // Double check - show a sample URL
+        const sample = await Media.findOne({ storageType: 's3' });
+        if (sample) {
+            console.log('Sample URL in database:');
+            console.log(`   ${sample.url}`);
+
+            if (sample.url.includes(`:${S3_BUCKET}/`)) {
+                console.log('\n✅ URLs already have tenant ID format!');
+            } else {
+                console.log('\n⚠️  URL format might not match expected pattern.');
+                console.log('   Expected pattern: https://eu2.contabostorage.com/wendy-moore-gallery/...');
+            }
+        }
         await mongoose.disconnect();
         return;
     }
@@ -64,17 +85,17 @@ async function fixUrls() {
     let fixed = 0;
     for (const file of filesToFix) {
         const oldUrl = file.url;
-        const newUrl = oldUrl.replace(wrongPattern, correctPattern);
+        const newUrl = oldUrl.replace(wrongUrlStart, correctUrlStart);
 
         let newThumbnail = file.thumbnail;
-        if (file.thumbnail && file.thumbnail.includes(wrongPattern)) {
-            newThumbnail = file.thumbnail.replace(wrongPattern, correctPattern);
+        if (file.thumbnail && file.thumbnail.includes(wrongUrlStart)) {
+            newThumbnail = file.thumbnail.replace(wrongUrlStart, correctUrlStart);
         }
 
         await Media.findByIdAndUpdate(file._id, {
             $set: {
                 url: newUrl,
-                thumbnail: newThumbnail
+                thumbnail: newThumbnail || file.thumbnail
             }
         });
 
@@ -83,7 +104,12 @@ async function fixUrls() {
     }
 
     console.log('\n\n✅ All URLs fixed!');
-    console.log(`\nSample URL: ${correctPattern}filename.jpg`);
+
+    // Show sample
+    const sample = await Media.findOne({ storageType: 's3' });
+    if (sample) {
+        console.log(`\nSample fixed URL: ${sample.url}`);
+    }
 
     await mongoose.disconnect();
     console.log('\n✨ Done!\n');
