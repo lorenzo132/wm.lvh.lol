@@ -13,7 +13,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // S3 Configuration from environment variables
-const S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://eu2.contabostorage.com';
+const S3_ENDPOINT = (process.env.S3_ENDPOINT || 'https://eu2.contabostorage.com').replace(/\/+$/, '');
 const S3_REGION = process.env.S3_REGION || 'eu-central-1';
 const S3_BUCKET = process.env.S3_BUCKET || '';
 const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || '';
@@ -211,7 +211,7 @@ export const getS3Url = (key) => {
     // Contabo S3 URL format: https://{endpoint}/{tenant_id}:{bucket}/{key}
     // Example: https://eu2.contabostorage.com/5f046e2c2dbe48bdb609cc07f804d216:wendy-moore-gallery/file.jpg
 
-    const endpoint = S3_ENDPOINT.replace('https://', '').replace('http://', '');
+    const endpoint = S3_ENDPOINT.replace('https://', '').replace('http://', '').replace(/\/+$/, '');
 
     if (S3_TENANT_ID) {
         // Contabo format with tenant ID

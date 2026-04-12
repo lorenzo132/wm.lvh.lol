@@ -62,7 +62,7 @@ async function fixUrls() {
         }
     });
 
-    console.log(`📂 Found ${filesToFix.length} files to fix\n`);
+    console.log(`📂 Found ${filesToFix.length} files to fix (missing tenant ID)\n`);
 
     if (filesToFix.length === 0) {
         // Double check - show a sample URL
@@ -78,37 +78,73 @@ async function fixUrls() {
                 console.log('   Expected pattern: https://eu2.contabostorage.com/wendy-moore-gallery/...');
             }
         }
-        await mongoose.disconnect();
-        return;
-    }
+    } else {
+        let fixed = 0;
+        for (const file of filesToFix) {
+            const oldUrl = file.url;
+            const newUrl = oldUrl.replace(wrongUrlStart, correctUrlStart);
 
-    let fixed = 0;
-    for (const file of filesToFix) {
-        const oldUrl = file.url;
-        const newUrl = oldUrl.replace(wrongUrlStart, correctUrlStart);
-
-        let newThumbnail = file.thumbnail;
-        if (file.thumbnail && file.thumbnail.includes(wrongUrlStart)) {
-            newThumbnail = file.thumbnail.replace(wrongUrlStart, correctUrlStart);
-        }
-
-        await Media.findByIdAndUpdate(file._id, {
-            $set: {
-                url: newUrl,
-                thumbnail: newThumbnail || file.thumbnail
+            let newThumbnail = file.thumbnail;
+            if (file.thumbnail && file.thumbnail.includes(wrongUrlStart)) {
+                newThumbnail = file.thumbnail.replace(wrongUrlStart, correctUrlStart);
             }
-        });
 
-        fixed++;
-        process.stdout.write(`\r   Fixed ${fixed}/${filesToFix.length}`);
+            await Media.findByIdAndUpdate(file._id, {
+                $set: {
+                    url: newUrl,
+                    thumbnail: newThumbnail || file.thumbnail
+                }
+            });
+
+            fixed++;
+            process.stdout.write(`\r   Fixed ${fixed}/${filesToFix.length}`);
+        }
+        console.log('\n');
     }
 
-    console.log('\n\n✅ All URLs fixed!');
+    // === Pass 2: Fix double-slash URLs ===
+    // These occur when S3_ENDPOINT had a trailing slash, producing URLs like:
+    // https://eu2.contabostorage.com//tenant:bucket/key
+    console.log('🔧 Checking for double-slash URLs...\n');
+
+    const doubleSlashFiles = await Media.find({
+        storageType: 's3',
+        url: { $regex: `https://${endpoint}//` }
+    });
+
+    console.log(`📂 Found ${doubleSlashFiles.length} files with double-slash URLs\n`);
+
+    if (doubleSlashFiles.length > 0) {
+        let fixed2 = 0;
+        for (const file of doubleSlashFiles) {
+            const oldUrl = file.url;
+            // Replace double (or more) slashes after the domain with a single slash
+            const newUrl = oldUrl.replace(`https://${endpoint}//`, `https://${endpoint}/`);
+
+            let newThumbnail = file.thumbnail;
+            if (file.thumbnail && file.thumbnail.includes(`https://${endpoint}//`)) {
+                newThumbnail = file.thumbnail.replace(`https://${endpoint}//`, `https://${endpoint}/`);
+            }
+
+            await Media.findByIdAndUpdate(file._id, {
+                $set: {
+                    url: newUrl,
+                    thumbnail: newThumbnail || file.thumbnail
+                }
+            });
+
+            fixed2++;
+            process.stdout.write(`\r   Fixed ${fixed2}/${doubleSlashFiles.length}`);
+        }
+        console.log('\n');
+    }
+
+    console.log('✅ All URL fixes complete!');
 
     // Show sample
     const sample = await Media.findOne({ storageType: 's3' });
     if (sample) {
-        console.log(`\nSample fixed URL: ${sample.url}`);
+        console.log(`\nSample URL: ${sample.url}`);
     }
 
     await mongoose.disconnect();
