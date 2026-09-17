@@ -16,6 +16,7 @@ build/
 
 # Uploaded files
 uploads/
+backups/
 
 # Logs
 npm-debug.log*

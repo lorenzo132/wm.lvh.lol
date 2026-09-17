@@ -12,9 +12,9 @@
  * - Rollback capability with backup file
  * 
  * Usage:
- *   node migrate-to-s3.js              # Run migration
- *   node migrate-to-s3.js --dry-run    # Preview without making changes
- *   node migrate-to-s3.js --verify     # Verify existing S3 files without migrating
+ *   node scripts/migrate-to-s3.js              # Run migration
+ *   node scripts/migrate-to-s3.js --dry-run    # Preview without making changes
+ *   node scripts/migrate-to-s3.js --verify     # Verify existing S3 files without migrating
  */
 
 import fs from 'fs';
@@ -23,12 +23,12 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import { uploadToS3, isS3Configured, getS3Url, existsInS3 } from './s3.js';
+import { uploadToS3, isS3Configured, getS3Url, existsInS3 } from '../s3.js';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const projectRoot = path.resolve(dirname(__filename), '..');
 
 const isDryRun = process.argv.includes('--dry-run');
 const isVerifyOnly = process.argv.includes('--verify');
@@ -71,7 +71,7 @@ function progressBar(current, total, width = 40) {
 
 // Create a backup of MongoDB records
 async function createBackup() {
-    const backupDir = path.join(__dirname, 'backups');
+    const backupDir = path.join(projectRoot, 'backups');
     if (!fs.existsSync(backupDir)) {
         fs.mkdirSync(backupDir, { recursive: true });
     }
@@ -163,10 +163,7 @@ async function migrateFiles() {
 
     // Connect to MongoDB
     console.log('📦 Connecting to MongoDB...');
-    await mongoose.connect(mongoUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-    });
+    await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB\n');
 
     // If verify only mode
@@ -184,7 +181,7 @@ async function migrateFiles() {
     }
 
     // Find all local files
-    const uploadsDir = path.join(__dirname, 'uploads');
+    const uploadsDir = path.resolve(process.env.UPLOADS_DIR || path.join(projectRoot, 'uploads'));
     const thumbnailsDir = path.join(uploadsDir, 'thumbnails');
 
     if (!fs.existsSync(uploadsDir)) {
@@ -312,7 +309,7 @@ async function migrateFiles() {
         console.log('='.repeat(50));
         console.log('\nNext steps:');
         console.log('1. Verify your gallery still works correctly');
-        console.log('2. Run: node migrate-to-s3.js --verify');
+        console.log('2. Run: node scripts/migrate-to-s3.js --verify');
         console.log('3. Only after verification, optionally delete local files:');
         console.log('   - Keep uploads/ folder (needed for video processing)');
         console.log('   - You can delete the actual files inside if verified\n');

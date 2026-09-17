@@ -12,7 +12,7 @@ import { execFile } from 'child_process';
 import compression from 'compression';
 import { requirePassword, validateMetadata, storedFilePath, removeLocalFile, deleteStoredMedia } from './server-media.js';
 import rateLimit from 'express-rate-limit';
-import { uploadToS3, deleteFromS3, getS3Url, isS3Configured, getS3Status } from './s3.js';
+import { uploadToS3, deleteFromS3, isS3Configured, getS3Status } from './s3.js';
 
 // Load environment variables
 dotenv.config();
@@ -140,40 +140,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Test endpoint
-app.get('/api/test', (req, res) => {
-  res.json({
-    message: 'Server is running!',
-    timestamp: new Date().toISOString(),
-    uploadPasswordConfigured: !!process.env.UPLOAD_PASSWORD,
-    storageMode: s3Enabled ? 's3' : 'local',
-  });
-});
-
-// Debug endpoint to show file dates
-app.get('/api/debug/files', async (req, res) => {
-  try {
-    const files = await Media.find().sort({ uploadedAt: -1 }).limit(50);
-    res.json({
-      files: files.map(doc => ({
-        filename: doc.filename,
-        size: doc.size,
-        uploadedAt: doc.uploadedAt,
-        url: doc.url,
-        storageType: doc.url?.includes('contabostorage') || doc.url?.includes('s3') ? 's3' : 'local'
-      }))
-    });
-  } catch (error) {
-    console.error('Error reading files:', error);
-    res.status(500).json({ error: 'Failed to read files' });
-  }
-});
-
-// Debug page
-app.get('/debug', (req, res) => {
-  res.sendFile(path.join(__dirname, 'debug.html'));
-});
-
 // Serve static files from uploads directory (for local storage fallback)
 app.use('/uploads', express.static(uploadsDir, {
   maxAge: '1y', // Cache for 1 year
@@ -256,17 +222,6 @@ async function saveTempFile(buffer, filename) {
   const tempPath = path.join(uploadsDir, `temp_${filename}`);
   await fs.promises.writeFile(tempPath, buffer);
   return tempPath;
-}
-
-// Helper to clean up temp file
-async function cleanupTempFile(tempPath) {
-  try {
-    if (fs.existsSync(tempPath)) {
-      await fs.promises.unlink(tempPath);
-    }
-  } catch (error) {
-    console.error('Failed to cleanup temp file:', error);
-  }
 }
 
 // Authentication runs before Multer writes files or buffers request bodies.

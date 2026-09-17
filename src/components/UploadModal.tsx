@@ -3,13 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Upload, X, Calendar, MapPin, Tag, Image, Video, ChevronDown, Check, Plus } from "lucide-react";
-import { MediaItem } from "@/types/media";
 import { uploadFiles } from "@/utils/api";
 import { toLocalDateTime, toStoredDate } from "@/utils/dates";
 import { toast } from "sonner";
@@ -48,8 +46,6 @@ const UploadModal = ({ isOpen, onClose, onUpload, locations, photographers }: Up
   });
   const [existingLocations, setExistingLocations] = useState<string[]>(locations);
   const [existingPhotographers, setExistingPhotographers] = useState<string[]>(photographers);
-  const [locationOpen, setLocationOpen] = useState(false);
-  const [photographerOpen, setPhotographerOpen] = useState(false);
   const [bulkLocationOpen, setBulkLocationOpen] = useState(false);
   const [bulkPhotographerOpen, setBulkPhotographerOpen] = useState(false);
   const [fileLocationOpen, setFileLocationOpen] = useState<{ [key: number]: boolean }>({});

@@ -1,6 +1,0 @@
-# Frontend Environment Variables (VITE_ prefix)
-VITE_API_URL=https://wm.lvh.lol
-UPLOAD_PASSWORD=your_secure_password_here
-
-# Backend Environment Variables (no VITE_ prefix)
-UPLOAD_PASSWORD=your_secure_password_here 

@@ -1,6 +1,6 @@
 /**
  * Fix S3 URLs in database to use correct Contabo format
- * Run: node fix-s3-urls.js
+ * Run: node scripts/fix-s3-urls.js
  * 
  * This updates all S3 URLs from:
  *   https://eu2.contabostorage.com/bucket/file
