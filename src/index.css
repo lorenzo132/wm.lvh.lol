@@ -1,9 +1,52 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root, .dark {
+    color-scheme: dark;
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 7% 7%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 7% 7%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 10% 4%;
+    --secondary: 240 5% 14%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 5% 13%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 5% 15%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 68% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5% 16%;
+    --input: 240 5% 16%;
+    --ring: 19 76% 52%;
+    --gallery-accent: 19 76% 52%;
+    --gallery-accent-foreground: 0 0% 100%;
+    --gallery-hover: 240 5% 15%;
+    --gallery-overlay: 240 10% 4% / 0.8;
+    --gradient-primary: linear-gradient(135deg, hsl(19 76% 50%), hsl(28 85% 56%));
+    --gradient-card: linear-gradient(hsl(240 7% 8%), hsl(240 7% 6%));
+    --gradient-overlay: linear-gradient(180deg, transparent, hsl(240 10% 4% / 0.8));
+    --shadow-elegant: 0 4px 20px -4px hsl(0 0% 0% / 0.5);
+    --shadow-card: 0 4px 16px -2px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 30px hsl(19 76% 52% / 0.25);
+    --radius: 0.65rem;
+    --sidebar-background: 240 10% 4%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 240 10% 4%;
+    --sidebar-accent: 240 5% 15%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 5% 16%;
+    --sidebar-ring: 19 76% 52%;
+  }
+
+  .light {
+    color-scheme: light;
     --background: 40 20% 98%;
     --foreground: 210 14% 15%;
     --card: 0 0% 100%;
@@ -58,6 +101,7 @@
   .brand-divider { height: 22px; width: 1px; background: hsl(var(--border)); margin: 0 8px; }
   .brand-label { font-size: 14px; font-weight: 500; letter-spacing: 0; }
   .masthead-note { color: hsl(var(--muted-foreground)); font-size: 13px; }
+  .masthead-actions { display: flex; align-items: center; gap: 10px; }
   .upload-button { border-radius: 7px; height: 40px; box-shadow: 0 2px 3px hsl(210 14% 15% / .08); }
   .gallery-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 46px 0 30px; }
   .eyebrow { font-size: 10px; font-weight: 650; letter-spacing: .18em; color: hsl(var(--muted-foreground)); margin-bottom: 8px; }
@@ -72,7 +116,8 @@
   .toolbar-filters { display: flex; align-items: center; gap: 8px; }
   .date-filter { width: 148px; border: 0; font-size: 13px; }
   .toolbar-divider { width: 1px; height: 22px; background: hsl(var(--border)); margin: 0 10px; }
-  .sort-select { background: transparent; font-size: 13px; padding: 8px 2px; width: 108px; cursor: pointer; }
+  .sort-select { background: transparent; font-size: 13px; padding: 8px 2px; width: 108px; cursor: pointer; color: hsl(var(--foreground)); }
+  .sort-select option { background: hsl(var(--card)); color: hsl(var(--card-foreground)); }
   .icon-action { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 7px; color: hsl(var(--muted-foreground)); transition: background .15s, color .15s; }
   .icon-action:hover { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
   .gallery-results { padding-top: 30px; scroll-margin-top: 20px; min-height: 45vh; }
@@ -91,7 +136,7 @@
   .preview-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .2s; }
   .preview-image.is-loaded { opacity: 1; }
   .video-indicator { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 5px; background: hsl(210 14% 15% / .7); color: white; border-radius: 4px; padding: 4px 7px; font-size: 10px; }
-  .preview-open { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: 5px; background: hsl(0 0% 100% / .95); color: hsl(var(--foreground)); font-size: 12px; white-space: nowrap; opacity: 0; transition: opacity .15s; }
+  .preview-open { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); padding: 6px 12px; border-radius: 5px; background: hsl(var(--card) / .92); backdrop-filter: blur(6px); border: 1px solid hsl(var(--border)); color: hsl(var(--card-foreground)); font-size: 12px; font-weight: 500; white-space: nowrap; opacity: 0; transition: opacity .15s; box-shadow: 0 4px 12px hsl(0 0% 0% / .2); }
   .media-preview:hover .preview-open, .media-preview:focus-visible .preview-open { opacity: 1; }
   .media-caption { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 0 4px; }
   .media-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-size: 13px; font-weight: 550; }

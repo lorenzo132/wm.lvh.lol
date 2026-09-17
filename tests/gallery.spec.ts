@@ -141,3 +141,23 @@ test('queue cancels pending work without starting it, releases failed jobs, and 
   await Promise.resolve();
   expect(starts).toBe(1);
 });
+
+test('defaults to dark mode and allows toggling to light mode with persistence', async ({ page }) => {
+  await mockGallery(page, [collection[0]]);
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await expect(page.getByRole('button', { name: 'Switch to light mode' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Switch to light mode' }).click();
+  await expect(page.locator('html')).toHaveClass(/light/);
+  await expect(page.getByRole('button', { name: 'Switch to dark mode' })).toBeVisible();
+
+  await page.reload();
+  await expect(page.locator('html')).toHaveClass(/light/);
+  await expect(page.getByRole('button', { name: 'Switch to dark mode' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Switch to dark mode' }).click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await page.reload();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+});

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,7 +12,21 @@
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://fle.lvh.lol/file/shxshx/Agama/chrome_EqeFGvKqfR.png" />
 
-
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('wm-theme') || localStorage.getItem('theme') || 'dark';
+          if (theme === 'light') {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+          } else {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
