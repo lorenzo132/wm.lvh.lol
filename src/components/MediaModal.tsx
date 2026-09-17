@@ -12,7 +12,7 @@ interface MediaModalProps {
 }
 
 const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => {
-  if (!media) return null;
+  if (!media || !isOpen) return null;
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -49,13 +49,13 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl w-full h-[90vh] p-0 bg-background border-border flex overflow-hidden">
+      <DialogContent aria-describedby={undefined} className="max-w-7xl w-[calc(100%-2rem)] h-[90dvh] p-0 bg-background border-border flex overflow-hidden">
         <div className="flex flex-col h-full w-full">
           {/* Header */}
-          <DialogHeader className="p-6 pb-2 border-b border-border">
-            <div className="flex items-center justify-between">
+          <DialogHeader className="p-4 pr-12 border-b border-border">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <DialogTitle className="text-xl font-semibold">{media.name}</DialogTitle>
+                <DialogTitle className="text-lg font-semibold break-all text-left">{media.name}</DialogTitle>
                 {media.type === 'video' && (
                   <Badge variant="secondary">
                     <Video className="w-3 h-3 mr-1" />
@@ -63,7 +63,7 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2 mr-8">
+              <div className="flex items-center gap-2">
                 <Button
                   onClick={handleShare}
                   className="bg-gradient-primary hover:opacity-90 transition-opacity"
@@ -83,32 +83,32 @@ const MediaModal = ({ media, isOpen, onClose, onDownload }: MediaModalProps) => 
           </DialogHeader>
 
           {/* Media Content */}
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto">
             {/* Media Viewer */}
-            <div className="flex-1 w-full h-full flex items-center justify-center bg-black/20 overflow-hidden">
+            <div className="flex-1 min-h-[35vh] md:min-h-0 w-full flex items-center justify-center bg-black/95 overflow-hidden">
               <div className="w-full h-full flex items-center justify-center overflow-hidden">
                 {media.type === 'video' ? (
                   <video
                     src={media.url}
                     controls
                     playsInline
-                    preload="metadata"
-                    className="block max-w-full max-h-[90vh] object-contain mx-auto rounded-lg shadow-2xl"
+                    preload="none"
+                    poster={media.thumbnail}
+                    className="block max-w-full max-h-full object-contain mx-auto"
                     autoPlay={false}
-                    crossOrigin="anonymous"
                   />
                 ) : (
                   <img
                     src={media.url}
                     alt={media.name}
-                    className="block max-w-full max-h-[90vh] object-contain mx-auto rounded-lg shadow-2xl"
+                    className="block max-w-full max-h-full object-contain mx-auto"
                   />
                 )}
               </div>
             </div>
 
             {/* Media Info Sidebar */}
-            <div className="w-80 bg-card border-l border-border p-6 overflow-y-auto">
+            <div className="w-full md:w-72 shrink-0 bg-card border-t md:border-t-0 md:border-l border-border p-5 md:overflow-y-auto">
               <div className="space-y-6">
                 <div>
                   <h3 className="font-semibold text-foreground mb-3">Details</h3>

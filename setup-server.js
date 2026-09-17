@@ -20,8 +20,7 @@ if (!fs.existsSync('package.json')) {
 try {
   // Install server dependencies
   console.log('📦 Installing server dependencies...');
-  execSync('npm install express multer cors', { stdio: 'inherit' });
-  execSync('npm install --save-dev nodemon', { stdio: 'inherit' });
+  execSync('npm ci', { stdio: 'inherit' });
   
   console.log('✅ Server dependencies installed successfully!\n');
   

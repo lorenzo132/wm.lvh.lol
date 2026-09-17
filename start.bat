@@ -17,7 +17,7 @@ REM Check if .env exists and add API URL if needed
 if not exist ".env" (
     echo 🔧 Creating .env file...
     echo VITE_API_URL=https://wm.lvh.lol > .env
-    echo VITE_UPLOAD_PASSWORD=your_secure_password_here >> .env
+    echo UPLOAD_PASSWORD=your_secure_password_here >> .env
 )
 
 REM Check if dist directory exists, if not build frontend

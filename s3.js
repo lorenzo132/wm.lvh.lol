@@ -258,7 +258,7 @@ export const getS3Status = () => {
         endpoint: S3_ENDPOINT,
         region: S3_REGION,
         bucket: S3_BUCKET ? `${S3_BUCKET.substring(0, 3)}...` : 'NOT SET',
-        accessKey: S3_ACCESS_KEY ? `${S3_ACCESS_KEY.substring(0, 4)}...` : 'NOT SET',
+        credentialsConfigured: Boolean(S3_ACCESS_KEY && S3_SECRET_KEY),
     };
 };
 

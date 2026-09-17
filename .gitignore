@@ -30,6 +30,8 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
+test-results/
+playwright-report/
 
 # IDE files
 .vscode/
@@ -44,4 +46,4 @@ coverage/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db

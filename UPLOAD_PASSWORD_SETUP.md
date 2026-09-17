@@ -1,42 +1,11 @@
-# Upload Password Setup
+﻿# Upload password
 
-This gallery now uses environment variables for upload password protection instead of localStorage.
+Set `UPLOAD_PASSWORD` in the server environment or `.env`, then restart the server. Users enter this password when uploading, editing, or deleting media. No password is needed in the frontend build.
 
-## Setup Instructions
+Remove the old `VITE_UPLOAD_PASSWORD` setting. If a previous frontend build contained your real password, change `UPLOAD_PASSWORD` and rebuild/redeploy the frontend to remove the exposed value.
 
-1. Create a `.env` file in the root directory of your project
-2. Add the following line to your `.env` file:
+Uploads authenticate before file data is accepted, using `Authorization: Bearer <URL-encoded password>`. The gallery sends this automatically. API integrations must send this header and one file per request. Editing and deletion continue to accept the password in their JSON request body.
 
-```
-VITE_UPLOAD_PASSWORD=your_secure_password_here
-```
+`VITE_API_URL` optionally selects a separate API host; otherwise production uses the current origin and development uses `http://localhost:3001`. For a separate frontend host, add its origin to the server's comma-separated `FRONTEND_ORIGINS` setting. Local Vite origins on port 8080 are supported by default.
 
-Replace `your_secure_password_here` with your actual password.
-
-## Security Notes
-
-- The password is stored in the environment variable `VITE_UPLOAD_PASSWORD`
-- Only users who know this password can upload media to the gallery
-- The password is validated on the client side
-- For production use, consider implementing server-side validation as well
-
-## Example .env file
-
-```
-# Upload password for the gallery
-VITE_UPLOAD_PASSWORD=my_secure_gallery_password_123
-```
-
-## Important
-
-- Add `.env` to your `.gitignore` file to prevent the password from being committed to version control
-- Restart your development server after creating the `.env` file
-- The password must be at least 6 characters long
-
-## Troubleshooting
-
-If you see "No upload password has been configured" error:
-1. Make sure your `.env` file exists in the project root
-2. Make sure the variable name is exactly `VITE_UPLOAD_PASSWORD`
-3. Restart your development server
-4. Check that the password is not empty 
+The backend also requires MongoDB. Install dependencies with `npm ci`, configure `MONGO_URI`, and start with `npm run server`. Optional video previews and dimensions require `ffmpeg` and `ffprobe`; unsupported video codecs do not prevent uploads.

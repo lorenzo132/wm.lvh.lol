@@ -1,22 +1,28 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useDeferredValue, useCallback, lazy, Suspense } from "react";
 import { toast } from "sonner";
 import GalleryHeader from "@/components/GalleryHeader";
 import MediaCard from "@/components/MediaCard";
-import MediaModal from "@/components/MediaModal";
-import UploadModal from "@/components/UploadModal";
+const MediaModal = lazy(() => import("@/components/MediaModal"));
+const UploadModal = lazy(() => import("@/components/UploadModal"));
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, ChevronLeft, ChevronRight, MapPin, Images, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { sampleMedia } from "@/data/sampleMedia";
 import { MediaItem, SortBy, SortOrder } from "@/types/media";
 import { loadMediaFromServer, deleteMediaFromServer, updateMediaOnServer } from "@/utils/storage";
-import { hasUploadPassword } from "@/utils/passwordManager";
+import { toLocalDateTime, toStoredDate } from "@/utils/dates";
+
+const PAGE_SIZE = 24;
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearch = useDeferredValue(searchTerm);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [showManagement, setShowManagement] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -35,31 +41,37 @@ const Index = () => {
   const [editLocationOpen, setEditLocationOpen] = useState(false);
   const [editPhotographerOpen, setEditPhotographerOpen] = useState(false);
 
-  // Load media from server and localStorage on component mount
-  useEffect(() => {
-    const loadMedia = async () => {
-      try {
-        const serverMedia = await loadMediaFromServer();
-        setMediaItems(serverMedia);
-      } catch (error) {
-        console.error("Failed to load media from server:", error);
-        setMediaItems([]);
-      }
-    };
-
-    loadMedia();
-
-    // Check if password is configured
-    if (!hasUploadPassword()) {
-      console.warn("VITE_UPLOAD_PASSWORD environment variable is not set. Upload functionality will be disabled.");
-    }
+  const refreshMedia = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(false);
+    try { setMediaItems(await loadMediaFromServer()); }
+    catch { setLoadError(true); }
+    finally { setIsLoading(false); }
   }, []);
+
+  useEffect(() => { void refreshMedia(); }, [refreshMedia]);
+
+  // One shortcut listener for the gallery, rather than two listeners per item.
+  useEffect(() => {
+    const update = (event: KeyboardEvent) => setShowManagement(event.ctrlKey && event.shiftKey);
+    const reset = () => setShowManagement(false);
+    document.addEventListener('keydown', update);
+    document.addEventListener('keyup', update);
+    window.addEventListener('blur', reset);
+    return () => {
+      document.removeEventListener('keydown', update);
+      document.removeEventListener('keyup', update);
+      window.removeEventListener('blur', reset);
+    };
+  }, []);
+
+  useEffect(() => { setPage(1); }, [deferredSearch, dateFilter, sortBy, sortOrder]);
 
   // Filter and sort media items
   const filteredAndSortedMedia = useMemo(() => {
-    let filtered = mediaItems.filter((media) => {
+    const searchLower = deferredSearch.trim().toLowerCase();
+    const filtered = mediaItems.filter((media) => {
       // Search filter
-      const searchLower = searchTerm.toLowerCase();
       const matchesSearch = (
         media.name.toLowerCase().includes(searchLower) ||
         media.location?.toLowerCase().includes(searchLower) ||
@@ -69,9 +81,9 @@ const Index = () => {
 
       // Date filter
       let matchesDate = true;
-      if (dateFilter && media.date) {
-        const mediaDate = new Date(media.date);
-        const filterDate = new Date(dateFilter);
+      if (dateFilter) {
+        const mediaDate = new Date(media.date || '');
+        const filterDate = new Date(dateFilter + 'T00:00:00');
         matchesDate = mediaDate.toDateString() === filterDate.toDateString();
       }
 
@@ -85,8 +97,8 @@ const Index = () => {
 
       switch (sortBy) {
         case 'date':
-          aValue = new Date(a.date || '').getTime();
-          bValue = new Date(b.date || '').getTime();
+          aValue = new Date(a.date || '').getTime() || 0;
+          bValue = new Date(b.date || '').getTime() || 0;
           break;
         case 'location':
           aValue = a.location || '';
@@ -112,7 +124,7 @@ const Index = () => {
     });
 
     return filtered;
-  }, [mediaItems, searchTerm, dateFilter, sortBy, sortOrder]);
+  }, [mediaItems, deferredSearch, dateFilter, sortBy, sortOrder]);
 
   // Extract unique values for search autocomplete
   const searchSuggestions = useMemo(() => {
@@ -126,43 +138,40 @@ const Index = () => {
     const photographers = [...new Set(mediaItems.map(item => item.photographer).filter(Boolean))];
     suggestions.push(...photographers);
 
-    // Add unique dates (formatted as readable strings)
-    const dates = [...new Set(mediaItems.map(item => {
-      if (item.date) {
-        return new Date(item.date).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-      }
-      return null;
-    }).filter(Boolean))];
-    suggestions.push(...dates);
-
     // Add unique tag names
     const tags = [...new Set(mediaItems.flatMap(item => item.tags || []))];
     suggestions.push(...tags);
 
-    return suggestions;
+    return [...new Set(suggestions)];
   }, [mediaItems]);
 
-  // Group media items by date and location
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedMedia.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
   const groupedMedia = useMemo(() => {
-    const groups: { [key: string]: MediaItem[] } = {};
-
-    filteredAndSortedMedia.forEach((media) => {
-      const date = media.date ? new Date(media.date).toDateString() : 'Unknown Date';
-      const location = media.location || 'Unknown Location';
-      const groupKey = `${date} - ${location}`;
-
-      if (!groups[groupKey]) {
-        groups[groupKey] = [];
+    const groups: { key: string; date: string; location: string; items: MediaItem[] }[] = [];
+    const dateGroups = new Map<string, typeof groups[number]>();
+    const visible = filteredAndSortedMedia.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    visible.forEach(media => {
+      const parsed = new Date(media.date || '');
+      const date = Number.isNaN(parsed.getTime()) ? 'Undated' : parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const location = media.location || 'No location';
+      const key = JSON.stringify([date, location]);
+      const last = sortBy === 'date' ? dateGroups.get(key) : groups[groups.length - 1];
+      // Contiguous groups preserve the selected global name/location ordering.
+      if (last?.key === key) last.items.push(media);
+      else {
+        const group = { key, date, location, items: [media] };
+        groups.push(group);
+        dateGroups.set(key, group);
       }
-      groups[groupKey].push(media);
     });
-
     return groups;
-  }, [filteredAndSortedMedia]);
+  }, [filteredAndSortedMedia, currentPage, sortBy]);
+
+  const changePage = (next: number) => {
+    setPage(next);
+    document.getElementById('gallery-results')?.scrollIntoView({ block: 'start' });
+  };
 
   const handleSortChange = (newSortBy: SortBy, newSortOrder: SortOrder) => {
     setSortBy(newSortBy);
@@ -180,6 +189,7 @@ const Index = () => {
     try {
       // For cross-origin URLs (like S3), we need to fetch and create a blob
       const response = await fetch(media.url);
+      if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
 
       // Create a blob URL and trigger download
@@ -197,31 +207,22 @@ const Index = () => {
       document.body.removeChild(link);
 
       // Clean up the blob URL
-      window.URL.revokeObjectURL(blobUrl);
+      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
     } catch (error) {
       console.error('Download failed:', error);
       // Fallback: open in new tab
-      window.open(media.url, '_blank');
+      window.open(media.url, '_blank', 'noopener,noreferrer');
       toast.error('Download failed, opened in new tab instead');
     }
   };
 
   const handleUpload = () => {
-    // Check if password is configured
-    if (!hasUploadPassword()) {
-      toast.error("Upload password not configured. Please set VITE_UPLOAD_PASSWORD in your .env file.");
-      return;
-    }
-
-    // Always open upload modal directly - password will be entered there
     setIsUploadModalOpen(true);
   };
 
   const handleUploadComplete = async () => {
-    const serverMedia = await loadMediaFromServer();
-    setMediaItems(serverMedia);
     setIsUploadModalOpen(false);
-    toast.success('Gallery updated with new uploads!');
+    await refreshMedia();
   };
 
   const handleDeleteMedia = async (media: MediaItem, password: string) => {
@@ -235,7 +236,7 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Delete error:', error);
-      toast.error('Failed to delete media');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete media');
     }
   };
 
@@ -251,7 +252,7 @@ const Index = () => {
       location: media.location || '',
       tags: (media.tags || []).join(', '),
       photographer: media.photographer || '',
-      date: media.date ? new Date(media.date).toISOString().slice(0, 16) : '',
+      date: media.date ? toLocalDateTime(media.date) : '',
       password: ''
     });
     setIsEditModalOpen(true);
@@ -262,31 +263,35 @@ const Index = () => {
   };
 
   const handleEditSave = async () => {
+    if (!editMedia || isSavingEdit) return;
+    if (!editForm.name.trim()) {
+      toast.error('Please enter a media name.');
+      return;
+    }
     if (!editForm.password) {
       toast.error('Password is required to save changes.');
       return;
     }
     setIsSavingEdit(true);
     const updates = {
-      name: editForm.name,
+      name: editForm.name.trim(),
       location: editForm.location,
       tags: editForm.tags.split(',').map(t => t.trim()).filter(Boolean),
       photographer: editForm.photographer,
-      date: editForm.date,
+      date: editForm.date === toLocalDateTime(editMedia.date || '') ? editMedia.date || '' : toStoredDate(editForm.date),
     };
     try {
       const success = await updateMediaOnServer(editMedia, updates, editForm.password);
       if (success) {
-        // Optionally reload media from server
-        const serverMedia = await loadMediaFromServer();
-        setMediaItems(serverMedia);
+        // The mutation already succeeded; a second GET must not turn it into a failure.
+        setMediaItems(items => items.map(item => item.id === editMedia.id ? { ...item, ...updates } : item));
         setIsEditModalOpen(false);
         toast.success('Media updated!');
       } else {
         toast.error('Failed to update media.');
       }
     } catch (error) {
-      toast.error('Failed to update media.');
+      toast.error(error instanceof Error ? error.message : 'Failed to update media.');
     } finally {
       setIsSavingEdit(false);
     }
@@ -294,90 +299,57 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex-1">
-            <GalleryHeader
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              searchSuggestions={searchSuggestions}
-              dateFilter={dateFilter}
-              onDateFilterChange={setDateFilter}
-              onDateSearch={() => {
-                // The date filtering happens automatically, but this provides user feedback
-                // You could add a toast notification here if desired
-              }}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={handleSortChange}
-              onUpload={handleUpload}
-              totalItems={filteredAndSortedMedia.length}
-            />
+      <div className="gallery-shell">
+        <GalleryHeader
+          searchTerm={searchTerm} onSearchChange={setSearchTerm} searchSuggestions={searchSuggestions}
+          dateFilter={dateFilter} onDateFilterChange={setDateFilter}
+          sortBy={sortBy} sortOrder={sortOrder} onSortChange={handleSortChange}
+          onUpload={handleUpload} totalItems={mediaItems.length}
+        />
+        <main id="gallery-results" className="gallery-results" aria-busy={isLoading}>
+          <div className="results-bar"><span>{searchTerm || dateFilter ? 'Search results' : 'All media'} <span className="result-badge">{filteredAndSortedMedia.length.toLocaleString()}</span></span>
+            {(searchTerm || dateFilter) && <button onClick={() => { setSearchTerm(''); setDateFilter(''); }} className="text-sm text-muted-foreground hover:text-foreground">Clear filters</button>}
           </div>
-
-
-        </div>
-
-        {/* Gallery Grid */}
-        <div className="mt-8">
-          {filteredAndSortedMedia.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
-                <div className="w-12 h-12 bg-muted-foreground/20 rounded-lg" />
+          {isLoading ? <div className="media-grid" role="status" aria-label="Loading media">{Array.from({ length: 8 }, (_, i) => <div key={i} className="gallery-skeleton"><div /><span /></div>)}</div>
+            : loadError ? <div className="gallery-empty" role="alert"><RotateCcw /><h2>Unable to load your collection</h2><p>Please try again in a moment.</p><Button variant="outline" onClick={refreshMedia}>Try again</Button></div>
+            : filteredAndSortedMedia.length === 0 ? <div className="gallery-empty"><Images /><h2>{searchTerm || dateFilter ? 'No matching moments' : 'Your collection starts here'}</h2><p>{searchTerm || dateFilter ? 'Try another search or clear your filters.' : 'Upload photos and videos to bring your gallery to life.'}</p><Button variant="outline" onClick={searchTerm || dateFilter ? () => { setSearchTerm(''); setDateFilter(''); } : handleUpload}>{searchTerm || dateFilter ? 'Clear filters' : 'Upload media'}</Button></div>
+            : <>
+              <div className="space-y-10">
+                {groupedMedia.map((group, index) => <section key={group.key + index} aria-label={group.date + ', ' + group.location}>
+                  <div className="group-heading"><h2>{group.date}</h2><span className="group-location"><MapPin size={13} />{group.location}</span><span className="group-rule" /><span className="group-count">{group.items.length}</span></div>
+                  <div className="media-grid">{group.items.map(media => <MediaCard key={media.id} media={media} onView={handleViewMedia} onDownload={handleDownloadMedia} onDelete={handleDeleteMedia} onEdit={handleEditMedia} showManagement={showManagement} />)}</div>
+                </section>)}
               </div>
-              <h3 className="text-xl font-semibold mb-2">No media found</h3>
-              <p className="text-muted-foreground">
-                {searchTerm ? `No results for "${searchTerm}"` : "Start by uploading some media"}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {Object.entries(groupedMedia).map(([groupKey, groupMedia]) => (
-                <div key={groupKey} className="mb-10">
-                  {/* Group Header */}
-                  <div className="mb-4">
-                    <h2 className="text-xl font-semibold text-foreground">{groupKey.split(' - ')[0]}</h2>
-                    <h3 className="text-lg font-medium text-muted-foreground">{groupKey.split(' - ')[1]}</h3>
-                  </div>
-
-                  {/* Media Grid for this group */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {groupMedia.map((media) => (
-                      <MediaCard
-                        key={media.id}
-                        media={media}
-                        onView={handleViewMedia}
-                        onDownload={handleDownloadMedia}
-                        onDelete={handleDeleteMedia}
-                        onEdit={handleEditMedia}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+              <nav className="gallery-pagination" aria-label="Gallery pages">
+                <span aria-live="polite">Showing {((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()} to {Math.min(currentPage * PAGE_SIZE, filteredAndSortedMedia.length).toLocaleString()} of {filteredAndSortedMedia.length.toLocaleString()}</span>
+                {totalPages > 1 && <div className="flex items-center gap-3"><Button variant="outline" size="icon" aria-label="Previous page" disabled={currentPage === 1} onClick={() => changePage(currentPage - 1)}><ChevronLeft size={16} /></Button><span>Page {currentPage} of {totalPages}</span><Button variant="outline" size="icon" aria-label="Next page" disabled={currentPage === totalPages} onClick={() => changePage(currentPage + 1)}><ChevronRight size={16} /></Button></div>}
+              </nav>
+            </>}
+        </main>
+        <footer className="gallery-footer"><span>wm. gallery</span><span>Keep the moments that matter.</span></footer>
 
         {/* Media Modal */}
-        <MediaModal
+        <Suspense fallback={<div className="dialog-loading" role="status">Opening...</div>}>
+        {isModalOpen && <MediaModal
           media={selectedMedia}
           isOpen={isModalOpen}
           onClose={handleCloseModal}
           onDownload={handleDownloadMedia}
-        />
+        />}
 
         {/* Upload Modal */}
-        <UploadModal
+        {isUploadModalOpen && <UploadModal
           isOpen={isUploadModalOpen}
           onClose={() => setIsUploadModalOpen(false)}
           onUpload={handleUploadComplete}
-        />
+          locations={locations}
+          photographers={photographers}
+        />}
+        </Suspense>
 
         {/* Edit Modal */}
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent>
+          <DialogContent className="max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Media</DialogTitle>
             </DialogHeader>
@@ -395,13 +367,14 @@ const Index = () => {
                     <video
                       src={editMedia.url}
                       controls
+                      preload="none"
                       className="max-h-48 rounded shadow"
                     />
                   ) : null}
                 </div>
               )}
               <Input
-                label="Name"
+                aria-label="Name"
                 value={editForm.name}
                 onChange={e => handleEditFormChange('name', e.target.value)}
                 placeholder="Name"
@@ -462,7 +435,7 @@ const Index = () => {
               </div>
               {/* Tags input remains free text for now */}
               <Input
-                label="Tags"
+                aria-label="Tags"
                 value={editForm.tags}
                 onChange={e => handleEditFormChange('tags', e.target.value)}
                 placeholder="Tags (comma separated)"
@@ -512,7 +485,7 @@ const Index = () => {
                 </Popover>
               </div>
               <Input
-                label="Password"
+                aria-label="Password"
                 type="password"
                 value={editForm.password}
                 onChange={e => handleEditFormChange('password', e.target.value)}

@@ -1,5 +1,6 @@
 import { MediaItem } from "@/types/media";
-import { getFiles, deleteFile, updateFile } from "./api";
+import { getFiles, deleteFile, updateFile, resolveMediaUrl } from "./api";
+import { validDate } from "./dates";
 
 // Only fetch media from the backend
 export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
@@ -9,10 +10,10 @@ export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
     const mediaItems: MediaItem[] = serverFiles.files.map(fileInfo => ({
       id: fileInfo.id || fileInfo.filename,
       name: fileInfo.name || fileInfo.filename.replace(/\.[^/.]+$/, ""),
-      url: fileInfo.url, // Use the actual URL from database (S3 or local)
-      thumbnail: fileInfo.thumbnail,
-      type: fileInfo.type === 'video' ? 'video' : 'image',
-      date: fileInfo.date || new Date(fileInfo.uploadedAt).toISOString(),
+      url: resolveMediaUrl(fileInfo.url),
+      thumbnail: fileInfo.thumbnail ? resolveMediaUrl(fileInfo.thumbnail) : undefined,
+      type: fileInfo.type === 'video' || fileInfo.mimetype?.startsWith('video/') ? 'video' : 'image',
+      date: fileInfo.date === '' ? undefined : validDate(fileInfo.date)?.toISOString() || validDate(fileInfo.uploadedAt)?.toISOString(),
       location: fileInfo.location,
       size: fileInfo.size,
       dimensions: fileInfo.dimensions,
@@ -24,14 +25,14 @@ export const loadMediaFromServer = async (): Promise<MediaItem[]> => {
     }));
     // Sort by upload date (newest first)
     mediaItems.sort((a, b) => {
-      const dateA = new Date(a.date || '').getTime();
-      const dateB = new Date(b.date || '').getTime();
+      const dateA = new Date(a.date || '').getTime() || 0;
+      const dateB = new Date(b.date || '').getTime() || 0;
       return dateB - dateA;
     });
     return mediaItems;
   } catch (error) {
     console.error("Failed to load media from server:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -47,7 +48,7 @@ export const deleteMediaFromServer = async (media: MediaItem, password: string):
     return result.success;
   } catch (error) {
     console.error("Failed to delete media from server:", error);
-    return false;
+    throw error;
   }
 };
 
@@ -64,6 +65,6 @@ export const updateMediaOnServer = async (
     return result.success;
   } catch (error) {
     console.error("Failed to update media on server:", error);
-    return false;
+    throw error;
   }
 };

@@ -11,14 +11,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Upload, X, Calendar, MapPin, Tag, Image, Video, ChevronDown, Check, Plus } from "lucide-react";
 import { MediaItem } from "@/types/media";
 import { uploadFiles } from "@/utils/api";
-import { loadMediaFromServer } from "@/utils/storage";
+import { toLocalDateTime, toStoredDate } from "@/utils/dates";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: () => void;
+  onUpload: () => void | Promise<void>;
+  locations: string[];
+  photographers: string[];
 }
 
 interface FileWithMetadata {
@@ -32,7 +34,7 @@ interface FileWithMetadata {
   photographer?: string;
 }
 
-const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
+const UploadModal = ({ isOpen, onClose, onUpload, locations, photographers }: UploadModalProps) => {
   const [files, setFiles] = useState<FileWithMetadata[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [password, setPassword] = useState("");
@@ -40,12 +42,12 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkMetadata, setBulkMetadata] = useState({
     location: "",
-    date: new Date().toISOString().slice(0, 16),
+    date: toLocalDateTime(new Date()),
     tags: "",
     photographer: ""
   });
-  const [existingLocations, setExistingLocations] = useState<string[]>([]);
-  const [existingPhotographers, setExistingPhotographers] = useState<string[]>([]);
+  const [existingLocations, setExistingLocations] = useState<string[]>(locations);
+  const [existingPhotographers, setExistingPhotographers] = useState<string[]>(photographers);
   const [locationOpen, setLocationOpen] = useState(false);
   const [photographerOpen, setPhotographerOpen] = useState(false);
   const [bulkLocationOpen, setBulkLocationOpen] = useState(false);
@@ -59,124 +61,51 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
   const [uploadProgress, setUploadProgress] = useState<{ [index: number]: { loaded: number; total: number } }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load existing media data for autocomplete
+  const previewUrls = useRef(new Set<string>());
+  const uploadInProgress = useRef(false);
+  const uploadedAny = useRef(false);
   useEffect(() => {
-    const loadExistingData = async () => {
-      try {
-        const mediaItems = await loadMediaFromServer();
-        const locations = [...new Set(mediaItems.map(item => item.location).filter(Boolean))];
-        const photographers = [...new Set(mediaItems.map(item => item.photographer).filter(Boolean))];
-        setExistingLocations(locations);
-        setExistingPhotographers(photographers);
-      } catch (error) {
-        console.error('Failed to load existing media data:', error);
-      }
-    };
-
-    if (isOpen) {
-      loadExistingData();
-    }
-  }, [isOpen]);
+    const urls = previewUrls.current;
+    return () => { urls.forEach(url => URL.revokeObjectURL(url)); urls.clear(); };
+  }, []);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files || []);
-    
-    selectedFiles.forEach((file) => {
-      // Prevent duplicates: check if file with same name and size already exists
-      if (files.some(f => f.file.name === file.name && f.file.size === file.size)) {
-        return;
+    if (uploadInProgress.current) return;
+    const knownFiles = new Set(files.map(item => item.file.name + ':' + item.file.size));
+    const selected: FileWithMetadata[] = [];
+    for (const file of Array.from(event.target.files || [])) {
+      const key = file.name + ':' + file.size;
+      if (knownFiles.has(key)) continue;
+      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+        toast.error('Unsupported file type: ' + file.name);
+        continue;
       }
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const preview = e.target?.result as string;
-          // Extract date from file metadata or use current date
-          const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
-          const fileWithMetadata: FileWithMetadata = {
-            file,
-            preview,
-            name: file.name,
-            customName: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
-            location: bulkMode ? bulkMetadata.location : "",
-            date: bulkMode ? bulkMetadata.date : fileDate.toISOString().slice(0, 16), // Format for datetime-local input
-            tags: bulkMode ? bulkMetadata.tags : "",
-            photographer: bulkMode ? bulkMetadata.photographer : ""
-          };
-          setFiles(prev => [...prev, fileWithMetadata]);
-        };
-        reader.readAsDataURL(file);
-      } else if (file.type.startsWith('video/')) {
-        // Generate a thumbnail from the video
-        const videoUrl = URL.createObjectURL(file);
-        const video = document.createElement('video');
-        video.src = videoUrl;
-        video.crossOrigin = 'anonymous';
-        video.preload = 'metadata';
-        video.muted = true;
-        video.playsInline = true;
-        video.currentTime = 1; // Try to get a frame at 1 second
-        video.onloadeddata = () => {
-          // Seek to 10% of duration if possible
-          if (video.duration && video.duration > 2) {
-            video.currentTime = Math.max(1, video.duration * 0.1);
-          }
-        };
-        video.onseeked = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const preview = canvas.toDataURL('image/png');
-            // Extract date from file metadata or use current date
-            const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
-            const fileWithMetadata: FileWithMetadata = {
-              file,
-              preview,
-              name: file.name,
-              customName: file.name.replace(/\.[^/.]+$/, ""),
-              location: bulkMode ? bulkMetadata.location : "",
-              date: bulkMode ? bulkMetadata.date : fileDate.toISOString().slice(0, 16),
-              tags: bulkMode ? bulkMetadata.tags : "",
-              photographer: bulkMode ? bulkMetadata.photographer : ""
-            };
-            setFiles(prev => [...prev, fileWithMetadata]);
-          }
-          URL.revokeObjectURL(videoUrl);
-        };
-        // Fallback: if seeking fails, use the first frame
-        video.onerror = () => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const preview = e.target?.result as string;
-            const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
-            const fileWithMetadata: FileWithMetadata = {
-              file,
-              preview,
-              name: file.name,
-              customName: file.name.replace(/\.[^/.]+$/, ""),
-              location: bulkMode ? bulkMetadata.location : "",
-              date: bulkMode ? bulkMetadata.date : fileDate.toISOString().slice(0, 16),
-              tags: bulkMode ? bulkMetadata.tags : "",
-              photographer: bulkMode ? bulkMetadata.photographer : ""
-            };
-            setFiles(prev => [...prev, fileWithMetadata]);
-          };
-          reader.readAsDataURL(file);
-        };
-      } else {
-        toast.error(`Unsupported file type: ${file.name}`);
+      if (file.size > 200 * 1024 * 1024) {
+        toast.error(file.name + ' exceeds the 200 MB limit.');
+        continue;
       }
-    });
-    // Clear the file input after processing
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      knownFiles.add(key);
+      // Selection never depends on browser video codecs, seeking, or canvas decoding.
+      const preview = file.type.startsWith('image/') ? URL.createObjectURL(file) : '';
+      if (preview) previewUrls.current.add(preview);
+      selected.push({ file, preview, name: file.name, customName: file.name.replace(/\.[^/.]+$/, ''),
+        location: bulkMode ? bulkMetadata.location : '',
+        date: bulkMode ? bulkMetadata.date : toLocalDateTime(new Date(file.lastModified || Date.now())),
+        tags: bulkMode ? bulkMetadata.tags : '', photographer: bulkMode ? bulkMetadata.photographer : '' });
     }
+    setFiles(current => [...current, ...selected]);
+    event.target.value = '';
   };
 
+  const releasePreview = (item: FileWithMetadata) => {
+    if (item.preview) { URL.revokeObjectURL(item.preview); previewUrls.current.delete(item.preview); }
+  };
   const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+    if (uploadInProgress.current) return;
+    releasePreview(files[index]);
+    setFiles(current => current.filter((_, i) => i !== index));
+    setFileLocationOpen({}); setFilePhotographerOpen({});
+    setFileLocationSearch({}); setFilePhotographerSearch({});
   };
 
   const updateFileMetadata = (index: number, field: keyof FileWithMetadata, value: string) => {
@@ -190,93 +119,17 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
     setFiles(prevFiles => prevFiles.map(file => ({ ...file, [field]: value })));
   };
 
-  const createNewLocation = (location: string, isBulk: boolean = false, fileIndex?: number) => {
-    if (!location.trim()) return;
-    
-    let formattedLocation = location.trim();
-    
-    // Check if location already has country code format (city, CC)
-    const locationPattern = /^[^,]+,\s*[A-Z]{2}$/;
-    if (!locationPattern.test(formattedLocation)) {
-      // Auto-detect country code using geocoding API
-      detectCountryCode(formattedLocation).then(countryCode => {
-        if (countryCode) {
-          const finalLocation = `${formattedLocation}, ${countryCode}`;
-          
-          // Add to existing locations if not already present
-          if (!existingLocations.includes(finalLocation)) {
-            setExistingLocations(prev => [...prev, finalLocation]);
-          }
-          
-          // Update the appropriate metadata
-          if (isBulk) {
-            handleBulkMetadataChange('location', finalLocation);
-            setBulkLocationSearch("");
-            setBulkLocationOpen(false);
-          } else if (fileIndex !== undefined) {
-            updateFileMetadata(fileIndex, 'location', finalLocation);
-            setFileLocationSearch(prev => ({ ...prev, [fileIndex]: "" }));
-            setFileLocationOpen(prev => ({ ...prev, [fileIndex]: false }));
-          }
-        } else {
-          toast.error(`Could not detect country for "${formattedLocation}". Please try a different city name.`);
-        }
-      }).catch(error => {
-        console.error('Geocoding error:', error);
-        toast.error(`Failed to detect country for "${formattedLocation}". Please try again.`);
-      });
-      return; // Exit early, the async function will handle the rest
-    }
-    
-    // If already in correct format, proceed normally
-    if (!existingLocations.includes(formattedLocation)) {
-      setExistingLocations(prev => [...prev, formattedLocation]);
-    }
-    
-    // Update the appropriate metadata
+  const createNewLocation = (location: string, isBulk = false, fileIndex?: number) => {
+    const value = location.trim();
+    if (!value) return;
+    setExistingLocations(current => current.includes(value) ? current : [...current, value]);
     if (isBulk) {
-      handleBulkMetadataChange('location', formattedLocation);
-      setBulkLocationSearch("");
-      setBulkLocationOpen(false);
+      handleBulkMetadataChange('location', value);
+      setBulkLocationSearch(''); setBulkLocationOpen(false);
     } else if (fileIndex !== undefined) {
-      updateFileMetadata(fileIndex, 'location', formattedLocation);
-      setFileLocationSearch(prev => ({ ...prev, [fileIndex]: "" }));
-      setFileLocationOpen(prev => ({ ...prev, [fileIndex]: false }));
-    }
-  };
-
-  const detectCountryCode = async (cityName: string): Promise<string | null> => {
-    try {
-      // Use Nominatim API to geocode the city
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1&addressdetails=1`,
-        {
-          headers: {
-            'Accept-Language': 'en',
-            'User-Agent': 'MediaGallery/1.0'
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Geocoding request failed');
-      }
-      
-      const data = await response.json();
-      
-      if (data && data.length > 0) {
-        const result = data[0];
-        const countryCode = result.address?.country_code?.toUpperCase();
-        
-        if (countryCode && countryCode.length === 2) {
-          return countryCode;
-        }
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      return null;
+      updateFileMetadata(fileIndex, 'location', value);
+      setFileLocationSearch(current => ({ ...current, [fileIndex]: '' }));
+      setFileLocationOpen(current => ({ ...current, [fileIndex]: false }));
     }
   };
 
@@ -303,131 +156,63 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) {
-      toast.error("Please select at least one file");
-      return;
-    }
-
-    if (!password.trim()) {
-      toast.error("Upload password is required");
-      return;
-    }
-
+    if (uploadInProgress.current || !files.length) return;
+    if (!password.trim()) { toast.error('Upload password is required'); return; }
+    if (files.some(item => !item.customName.trim())) { toast.error('Please enter a name for each file.'); return; }
+    uploadInProgress.current = true;
     setIsUploading(true);
     setUploadProgress({});
-
+    const completed = new Set<File>();
     try {
-      // Extract dimensions for all files before upload
-      const filesWithDimensions = await Promise.all(
-        files.map(async (fileData) => {
-          let dimensions;
-          if (fileData.file.type.startsWith('image/')) {
-            dimensions = await getImageDimensions(fileData.preview);
-          } else if (fileData.file.type.startsWith('video/')) {
-            dimensions = await getVideoDimensions(fileData.preview);
-          }
-          return { ...fileData, dimensions };
-        })
-      );
-
-      // Upload files one by one with progress
-      for (let i = 0; i < filesWithDimensions.length; i++) {
-        const fileData = filesWithDimensions[i];
-        const formData = new FormData();
-        formData.append('files', fileData.file);
-        formData.append('password', password);
-        formData.append('metadata', JSON.stringify({
-          name: fileData.customName || fileData.name,
-          date: fileData.date,
-          location: fileData.location,
-          tags: typeof fileData.tags === 'string' ? fileData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
-          photographer: fileData.photographer || '',
-          dimensions: fileData.dimensions,
-        }));
-
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', '/api/upload', true);
-
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              setUploadProgress(prev => ({
-                ...prev,
-                [i]: { loaded: event.loaded, total: event.total }
-              }));
-            }
-          };
-
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              setUploadProgress(prev => ({
-                ...prev,
-                [i]: { loaded: fileData.file.size, total: fileData.file.size }
-              }));
-              resolve();
-            } else {
-              reject(new Error(xhr.statusText));
-            }
-          };
-
-          xhr.onerror = () => {
-            reject(new Error('Upload failed'));
-          };
-
-          xhr.send(formData);
-        });
+      for (let i = 0; i < files.length; i++) {
+        const item = files[i];
+        const dimensions = item.file.type.startsWith('image/') ? await getImageDimensions(item.preview) : undefined;
+        await uploadFiles([item.file], password, [{
+          name: item.customName.trim(), date: toStoredDate(item.date), location: item.location,
+          tags: item.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+          photographer: item.photographer || '', dimensions,
+        }], (loaded, total) => setUploadProgress(current => ({ ...current, [i]: { loaded, total } })));
+        completed.add(item.file);
+        uploadedAny.current = true;
       }
-
-      onUpload();
-      toast.success(`Successfully uploaded ${files.length} file${files.length !== 1 ? 's' : ''}`);
-      handleClose();
+      toast.success('Successfully uploaded ' + completed.size + ' file(s)');
+      await onUpload();
+      onClose();
     } catch (error) {
-      let errorMsg = "Failed to upload files";
-      if (error instanceof Error) {
-        errorMsg = error.message;
-      } else if (typeof error === 'object' && error !== null && 'error' in error) {
-        errorMsg = error.error;
-      }
-      toast.error(errorMsg);
-      console.error("Upload error:", error);
+      // Retrying a partially failed batch must not upload successful files twice.
+      files.filter(item => completed.has(item.file)).forEach(releasePreview);
+      setFiles(current => current.filter(item => !completed.has(item.file)));
+      setUploadProgress({});
+      toast.error(error instanceof Error ? error.message : 'Failed to upload files');
     } finally {
+      uploadInProgress.current = false;
       setIsUploading(false);
     }
   };
 
-  const getImageDimensions = (src: string): Promise<{ width: number; height: number }> => {
-    return new Promise((resolve) => {
-      const img = document.createElement('img');
-      img.onload = () => {
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      };
-      img.onerror = () => {
-        resolve({ width: 0, height: 0 });
-      };
-      img.src = src;
-    });
-  };
-
-  const getVideoDimensions = (src: string): Promise<{ width: number; height: number }> => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      video.onloadedmetadata = () => {
-        resolve({ width: video.videoWidth, height: video.videoHeight });
-      };
-      video.onerror = () => {
-        resolve({ width: 0, height: 0 });
-      };
-      video.src = src;
-    });
-  };
+  const getImageDimensions = (src: string): Promise<{ width: number; height: number } | undefined> => new Promise(resolve => {
+    const image = document.createElement('img');
+    const finish = (dimensions?: { width: number; height: number }) => {
+      clearTimeout(timeout);
+      image.onload = image.onerror = null;
+      image.removeAttribute('src');
+      resolve(dimensions);
+    };
+    const timeout = window.setTimeout(() => finish(), 5000);
+    image.onload = () => finish({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = () => finish();
+    image.src = src;
+  });
 
   const handleClose = () => {
+    if (uploadInProgress.current) return;
+    if (uploadedAny.current) { void onUpload(); return; }
     setFiles([]);
     setPassword("");
     setBulkMode(false);
     setBulkMetadata({
       location: "",
-      date: new Date().toISOString().slice(0, 16),
+      date: toLocalDateTime(new Date()),
       tags: "",
       photographer: ""
     });
@@ -443,12 +228,12 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background border-border">
+      <DialogContent aria-describedby={undefined} className="w-[calc(100%-2rem)] max-w-4xl max-h-[90vh] overflow-y-auto bg-background border-border">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Upload Media</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <fieldset disabled={isUploading} className="space-y-6 min-w-0">
           {/* Password Field */}
           <div className="space-y-2">
             <Label htmlFor="upload-password" className="text-sm font-medium">
@@ -482,7 +267,10 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
               type="checkbox"
               id="bulk-mode"
               checked={bulkMode}
-              onChange={(e) => setBulkMode(e.target.checked)}
+              onChange={(e) => {
+                setBulkMode(e.target.checked);
+                if (e.target.checked) setFiles(current => current.map(item => ({ ...item, ...bulkMetadata })));
+              }}
               className="rounded border-border"
             />
             <Label htmlFor="bulk-mode" className="text-sm font-medium">
@@ -548,7 +336,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                 className="text-primary"
                               >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Create "{bulkLocationSearch.trim()}" (auto-detect country)
+                                Create "{bulkLocationSearch.trim()}"
                               </CommandItem>
                             )}
                           </CommandGroup>
@@ -706,6 +494,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                           variant="destructive"
                           size="icon"
                           className="absolute top-1 right-1 w-6 h-6 z-20"
+                          aria-label={`Remove ${fileData.name}`}
                           onClick={() => removeFile(index)}
                         >
                           <X className="w-3 h-3" />
@@ -713,7 +502,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                       </div>
 
                       {/* Metadata Form */}
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="min-w-0 flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <Label htmlFor={`name-${index}`} className="text-sm font-medium">
                             Display Name
@@ -785,7 +574,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
                                             className="text-primary"
                                           >
                                             <Plus className="mr-2 h-4 w-4" />
-                                            Create "{(fileLocationSearch[index] || "").trim()}" (auto-detect country)
+                                            Create "{(fileLocationSearch[index] || "").trim()}"
                                           </CommandItem>
                                         )}
                                       </CommandGroup>
@@ -940,7 +729,7 @@ const UploadModal = ({ isOpen, onClose, onUpload }: UploadModalProps) => {
               {isUploading ? "Uploading..." : `Upload ${files.length} File${files.length !== 1 ? 's' : ''}`}
             </Button>
           </div>
-        </div>
+        </fieldset>
       </DialogContent>
     </Dialog>
   );

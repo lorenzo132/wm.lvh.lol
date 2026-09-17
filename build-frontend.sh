@@ -12,7 +12,7 @@ fi
 if [ ! -f ".env" ]; then
     echo "🔧 Creating .env file..."
     echo "VITE_API_URL=https://wm.lvh.lol" > .env
-    echo "VITE_UPLOAD_PASSWORD=your_secure_password_here" >> .env
+    echo "UPLOAD_PASSWORD=your_secure_password_here" >> .env
 fi
 
 # Build the frontend
