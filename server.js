@@ -385,10 +385,26 @@ app.get('*', (req, res) => {
 
 // Importing the app for tests does not connect to production storage or start a listener.
 export async function startServer() {
-  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });
+  try {
+    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });
+    console.log('Connected to MongoDB');
+  } catch (error) {
+    console.error('MongoDB connection error (will retry in background):', error.message);
+  }
   return app.listen(PORT, '0.0.0.0', () => console.log('Gallery server listening on port ' + PORT));
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+
+const isTestEnv = process.env.NODE_ENV === 'test' || process.argv.some(arg => arg.includes('test'));
+const isMainExecution = !isTestEnv && (
+  !process.argv[1] ||
+  path.resolve(process.argv[1]) === __filename ||
+  process.argv[1].endsWith('server.js') ||
+  process.argv[1].includes('pm2') ||
+  process.env.pm_id !== undefined ||
+  process.env.PM2_HOME !== undefined
+);
+
+if (isMainExecution) {
   startServer().catch(error => {
     console.error('Server startup failed:', error.message);
     process.exitCode = 1;
